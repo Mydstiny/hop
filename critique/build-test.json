@@ -1,0 +1,85 @@
+{
+  "build": "passing",
+  "tests": "passing",
+  "commandsRun": [
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "tools/generate_keymap.py",
+        "--check"
+      ],
+      "cwd": ".",
+      "exitCode": 0,
+      "durationMs": 34,
+      "kind": "tests"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tools/mock-peer",
+        "-v"
+      ],
+      "cwd": ".",
+      "exitCode": 0,
+      "durationMs": 677,
+      "kind": "tests"
+    },
+    {
+      "command": [
+        "bash",
+        "apps/macos/scripts/verify.sh"
+      ],
+      "cwd": ".",
+      "exitCode": 0,
+      "durationMs": 20465,
+      "kind": "build_tests"
+    },
+    {
+      "command": [
+        "bash",
+        "scripts/verify.sh"
+      ],
+      "cwd": "apps/harmonyos",
+      "exitCode": 0,
+      "durationMs": 9568,
+      "kind": "build_tests"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "tools/test_native_interop.py"
+      ],
+      "cwd": ".",
+      "exitCode": 0,
+      "durationMs": 1166,
+      "kind": "tests"
+    },
+    {
+      "command": [
+        "bash",
+        "apps/macos/scripts/package.sh"
+      ],
+      "cwd": ".",
+      "exitCode": 0,
+      "durationMs": 9315,
+      "kind": "package"
+    }
+  ],
+  "failures": [],
+  "timestamp": "2026-11-08T15:41:38.530803+08:00",
+  "scope": "Native CLT universal macOS build + DevEco unsigned HarmonyOS HAP + offline/loopback tests only",
+  "xcodeProjectBuild": "not verified: complete Xcode is not installed",
+  "harmonySigning": "unsigned: no app/device-specific debug signingConfig",
+  "runtimeInputVerified": false,
+  "deviceInstalled": false,
+  "durationMs": 41226,
+  "signals": {
+    "build.passing": true,
+    "tests.passing": true
+  },
+  "critique.score": 5
+}
