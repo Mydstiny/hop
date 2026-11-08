@@ -1,0 +1,990 @@
+{
+  "version": 1,
+  "description": "Canonical shared physical Mac keycode to HarmonyOS KeyCode mapping; no character translation. Generated native resources must not be hand-edited.",
+  "sources": {
+    "macos": "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/Headers/Events.h",
+    "harmonyos": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/ets/api/@ohos.multimodalInput.keyCode.d.ts"
+  },
+  "modifier_bits": {
+    "left_shift": 0,
+    "right_shift": 1,
+    "left_ctrl": 2,
+    "right_ctrl": 3,
+    "left_alt": 4,
+    "right_alt": 5,
+    "left_meta": 6,
+    "right_meta": 7,
+    "caps_lock": 8
+  },
+  "keys": [
+    {
+      "mac": 0,
+      "mac_symbol": "kVK_ANSI_A",
+      "harmony": 2017,
+      "harmony_symbol": "KEYCODE_A",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 1,
+      "mac_symbol": "kVK_ANSI_S",
+      "harmony": 2035,
+      "harmony_symbol": "KEYCODE_S",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 2,
+      "mac_symbol": "kVK_ANSI_D",
+      "harmony": 2020,
+      "harmony_symbol": "KEYCODE_D",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 3,
+      "mac_symbol": "kVK_ANSI_F",
+      "harmony": 2022,
+      "harmony_symbol": "KEYCODE_F",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 4,
+      "mac_symbol": "kVK_ANSI_H",
+      "harmony": 2024,
+      "harmony_symbol": "KEYCODE_H",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 5,
+      "mac_symbol": "kVK_ANSI_G",
+      "harmony": 2023,
+      "harmony_symbol": "KEYCODE_G",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 6,
+      "mac_symbol": "kVK_ANSI_Z",
+      "harmony": 2042,
+      "harmony_symbol": "KEYCODE_Z",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 7,
+      "mac_symbol": "kVK_ANSI_X",
+      "harmony": 2040,
+      "harmony_symbol": "KEYCODE_X",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 8,
+      "mac_symbol": "kVK_ANSI_C",
+      "harmony": 2019,
+      "harmony_symbol": "KEYCODE_C",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 9,
+      "mac_symbol": "kVK_ANSI_V",
+      "harmony": 2038,
+      "harmony_symbol": "KEYCODE_V",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 10,
+      "mac_symbol": "kVK_ISO_Section",
+      "harmony": 2602,
+      "harmony_symbol": "KEYCODE_102ND",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 11,
+      "mac_symbol": "kVK_ANSI_B",
+      "harmony": 2018,
+      "harmony_symbol": "KEYCODE_B",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 12,
+      "mac_symbol": "kVK_ANSI_Q",
+      "harmony": 2033,
+      "harmony_symbol": "KEYCODE_Q",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 13,
+      "mac_symbol": "kVK_ANSI_W",
+      "harmony": 2039,
+      "harmony_symbol": "KEYCODE_W",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 14,
+      "mac_symbol": "kVK_ANSI_E",
+      "harmony": 2021,
+      "harmony_symbol": "KEYCODE_E",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 15,
+      "mac_symbol": "kVK_ANSI_R",
+      "harmony": 2034,
+      "harmony_symbol": "KEYCODE_R",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 16,
+      "mac_symbol": "kVK_ANSI_Y",
+      "harmony": 2041,
+      "harmony_symbol": "KEYCODE_Y",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 17,
+      "mac_symbol": "kVK_ANSI_T",
+      "harmony": 2036,
+      "harmony_symbol": "KEYCODE_T",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 18,
+      "mac_symbol": "kVK_ANSI_1",
+      "harmony": 2001,
+      "harmony_symbol": "KEYCODE_1",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 19,
+      "mac_symbol": "kVK_ANSI_2",
+      "harmony": 2002,
+      "harmony_symbol": "KEYCODE_2",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 20,
+      "mac_symbol": "kVK_ANSI_3",
+      "harmony": 2003,
+      "harmony_symbol": "KEYCODE_3",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 21,
+      "mac_symbol": "kVK_ANSI_4",
+      "harmony": 2004,
+      "harmony_symbol": "KEYCODE_4",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 22,
+      "mac_symbol": "kVK_ANSI_6",
+      "harmony": 2006,
+      "harmony_symbol": "KEYCODE_6",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 23,
+      "mac_symbol": "kVK_ANSI_5",
+      "harmony": 2005,
+      "harmony_symbol": "KEYCODE_5",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 24,
+      "mac_symbol": "kVK_ANSI_Equal",
+      "harmony": 2058,
+      "harmony_symbol": "KEYCODE_EQUALS",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 25,
+      "mac_symbol": "kVK_ANSI_9",
+      "harmony": 2009,
+      "harmony_symbol": "KEYCODE_9",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 26,
+      "mac_symbol": "kVK_ANSI_7",
+      "harmony": 2007,
+      "harmony_symbol": "KEYCODE_7",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 27,
+      "mac_symbol": "kVK_ANSI_Minus",
+      "harmony": 2057,
+      "harmony_symbol": "KEYCODE_MINUS",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 28,
+      "mac_symbol": "kVK_ANSI_8",
+      "harmony": 2008,
+      "harmony_symbol": "KEYCODE_8",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 29,
+      "mac_symbol": "kVK_ANSI_0",
+      "harmony": 2000,
+      "harmony_symbol": "KEYCODE_0",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 30,
+      "mac_symbol": "kVK_ANSI_RightBracket",
+      "harmony": 2060,
+      "harmony_symbol": "KEYCODE_RIGHT_BRACKET",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 31,
+      "mac_symbol": "kVK_ANSI_O",
+      "harmony": 2031,
+      "harmony_symbol": "KEYCODE_O",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 32,
+      "mac_symbol": "kVK_ANSI_U",
+      "harmony": 2037,
+      "harmony_symbol": "KEYCODE_U",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 33,
+      "mac_symbol": "kVK_ANSI_LeftBracket",
+      "harmony": 2059,
+      "harmony_symbol": "KEYCODE_LEFT_BRACKET",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 34,
+      "mac_symbol": "kVK_ANSI_I",
+      "harmony": 2025,
+      "harmony_symbol": "KEYCODE_I",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 35,
+      "mac_symbol": "kVK_ANSI_P",
+      "harmony": 2032,
+      "harmony_symbol": "KEYCODE_P",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 36,
+      "mac_symbol": "kVK_Return",
+      "harmony": 2054,
+      "harmony_symbol": "KEYCODE_ENTER",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 37,
+      "mac_symbol": "kVK_ANSI_L",
+      "harmony": 2028,
+      "harmony_symbol": "KEYCODE_L",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 38,
+      "mac_symbol": "kVK_ANSI_J",
+      "harmony": 2026,
+      "harmony_symbol": "KEYCODE_J",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 39,
+      "mac_symbol": "kVK_ANSI_Quote",
+      "harmony": 2063,
+      "harmony_symbol": "KEYCODE_APOSTROPHE",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 40,
+      "mac_symbol": "kVK_ANSI_K",
+      "harmony": 2027,
+      "harmony_symbol": "KEYCODE_K",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 41,
+      "mac_symbol": "kVK_ANSI_Semicolon",
+      "harmony": 2062,
+      "harmony_symbol": "KEYCODE_SEMICOLON",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 42,
+      "mac_symbol": "kVK_ANSI_Backslash",
+      "harmony": 2061,
+      "harmony_symbol": "KEYCODE_BACKSLASH",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 43,
+      "mac_symbol": "kVK_ANSI_Comma",
+      "harmony": 2043,
+      "harmony_symbol": "KEYCODE_COMMA",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 44,
+      "mac_symbol": "kVK_ANSI_Slash",
+      "harmony": 2064,
+      "harmony_symbol": "KEYCODE_SLASH",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 45,
+      "mac_symbol": "kVK_ANSI_N",
+      "harmony": 2030,
+      "harmony_symbol": "KEYCODE_N",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 46,
+      "mac_symbol": "kVK_ANSI_M",
+      "harmony": 2029,
+      "harmony_symbol": "KEYCODE_M",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 47,
+      "mac_symbol": "kVK_ANSI_Period",
+      "harmony": 2044,
+      "harmony_symbol": "KEYCODE_PERIOD",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 48,
+      "mac_symbol": "kVK_Tab",
+      "harmony": 2049,
+      "harmony_symbol": "KEYCODE_TAB",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 49,
+      "mac_symbol": "kVK_Space",
+      "harmony": 2050,
+      "harmony_symbol": "KEYCODE_SPACE",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 50,
+      "mac_symbol": "kVK_ANSI_Grave",
+      "harmony": 2056,
+      "harmony_symbol": "KEYCODE_GRAVE",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 51,
+      "mac_symbol": "kVK_Delete",
+      "harmony": 2055,
+      "harmony_symbol": "KEYCODE_DEL",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 53,
+      "mac_symbol": "kVK_Escape",
+      "harmony": 2070,
+      "harmony_symbol": "KEYCODE_ESCAPE",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 54,
+      "mac_symbol": "kVK_RightCommand",
+      "harmony": 2077,
+      "harmony_symbol": "KEYCODE_META_RIGHT",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收",
+      "modifier_bit": 7
+    },
+    {
+      "mac": 55,
+      "mac_symbol": "kVK_Command",
+      "harmony": 2076,
+      "harmony_symbol": "KEYCODE_META_LEFT",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收",
+      "modifier_bit": 6
+    },
+    {
+      "mac": 56,
+      "mac_symbol": "kVK_Shift",
+      "harmony": 2047,
+      "harmony_symbol": "KEYCODE_SHIFT_LEFT",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收",
+      "modifier_bit": 0
+    },
+    {
+      "mac": 57,
+      "mac_symbol": "kVK_CapsLock",
+      "harmony": 2074,
+      "harmony_symbol": "KEYCODE_CAPS_LOCK",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收",
+      "modifier_bit": 8
+    },
+    {
+      "mac": 58,
+      "mac_symbol": "kVK_Option",
+      "harmony": 2045,
+      "harmony_symbol": "KEYCODE_ALT_LEFT",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收",
+      "modifier_bit": 4
+    },
+    {
+      "mac": 59,
+      "mac_symbol": "kVK_Control",
+      "harmony": 2072,
+      "harmony_symbol": "KEYCODE_CTRL_LEFT",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收",
+      "modifier_bit": 2
+    },
+    {
+      "mac": 60,
+      "mac_symbol": "kVK_RightShift",
+      "harmony": 2048,
+      "harmony_symbol": "KEYCODE_SHIFT_RIGHT",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收",
+      "modifier_bit": 1
+    },
+    {
+      "mac": 61,
+      "mac_symbol": "kVK_RightOption",
+      "harmony": 2046,
+      "harmony_symbol": "KEYCODE_ALT_RIGHT",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收",
+      "modifier_bit": 5
+    },
+    {
+      "mac": 62,
+      "mac_symbol": "kVK_RightControl",
+      "harmony": 2073,
+      "harmony_symbol": "KEYCODE_CTRL_RIGHT",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收",
+      "modifier_bit": 3
+    },
+    {
+      "mac": 63,
+      "mac_symbol": "kVK_Function",
+      "harmony": null,
+      "harmony_symbol": null,
+      "status": "unsupported",
+      "notes": "Fn 系统/硬件处理，不可靠捕获或注入"
+    },
+    {
+      "mac": 64,
+      "mac_symbol": "kVK_F17",
+      "harmony": 2820,
+      "harmony_symbol": "KEYCODE_F17",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 65,
+      "mac_symbol": "kVK_ANSI_KeypadDecimal",
+      "harmony": 2117,
+      "harmony_symbol": "KEYCODE_NUMPAD_DOT",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 67,
+      "mac_symbol": "kVK_ANSI_KeypadMultiply",
+      "harmony": 2114,
+      "harmony_symbol": "KEYCODE_NUMPAD_MULTIPLY",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 69,
+      "mac_symbol": "kVK_ANSI_KeypadPlus",
+      "harmony": 2116,
+      "harmony_symbol": "KEYCODE_NUMPAD_ADD",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 71,
+      "mac_symbol": "kVK_ANSI_KeypadClear",
+      "harmony": null,
+      "harmony_symbol": null,
+      "status": "unsupported",
+      "notes": "Clear 不等同 NumLock，不猜测替换"
+    },
+    {
+      "mac": 72,
+      "mac_symbol": "kVK_VolumeUp",
+      "harmony": 16,
+      "harmony_symbol": "KEYCODE_VOLUME_UP",
+      "status": "conditional",
+      "notes": "需硬件产生普通 kVK 事件；系统保留媒体事件不保证"
+    },
+    {
+      "mac": 73,
+      "mac_symbol": "kVK_VolumeDown",
+      "harmony": 17,
+      "harmony_symbol": "KEYCODE_VOLUME_DOWN",
+      "status": "conditional",
+      "notes": "需硬件产生普通 kVK 事件；系统保留媒体事件不保证"
+    },
+    {
+      "mac": 74,
+      "mac_symbol": "kVK_Mute",
+      "harmony": 22,
+      "harmony_symbol": "KEYCODE_VOLUME_MUTE",
+      "status": "conditional",
+      "notes": "需硬件产生普通 kVK 事件；系统保留媒体事件不保证"
+    },
+    {
+      "mac": 75,
+      "mac_symbol": "kVK_ANSI_KeypadDivide",
+      "harmony": 2113,
+      "harmony_symbol": "KEYCODE_NUMPAD_DIVIDE",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 76,
+      "mac_symbol": "kVK_ANSI_KeypadEnter",
+      "harmony": 2119,
+      "harmony_symbol": "KEYCODE_NUMPAD_ENTER",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 78,
+      "mac_symbol": "kVK_ANSI_KeypadMinus",
+      "harmony": 2115,
+      "harmony_symbol": "KEYCODE_NUMPAD_SUBTRACT",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 79,
+      "mac_symbol": "kVK_F18",
+      "harmony": 2821,
+      "harmony_symbol": "KEYCODE_F18",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 80,
+      "mac_symbol": "kVK_F19",
+      "harmony": 2822,
+      "harmony_symbol": "KEYCODE_F19",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 81,
+      "mac_symbol": "kVK_ANSI_KeypadEquals",
+      "harmony": 2120,
+      "harmony_symbol": "KEYCODE_NUMPAD_EQUALS",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 82,
+      "mac_symbol": "kVK_ANSI_Keypad0",
+      "harmony": 2103,
+      "harmony_symbol": "KEYCODE_NUMPAD_0",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 83,
+      "mac_symbol": "kVK_ANSI_Keypad1",
+      "harmony": 2104,
+      "harmony_symbol": "KEYCODE_NUMPAD_1",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 84,
+      "mac_symbol": "kVK_ANSI_Keypad2",
+      "harmony": 2105,
+      "harmony_symbol": "KEYCODE_NUMPAD_2",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 85,
+      "mac_symbol": "kVK_ANSI_Keypad3",
+      "harmony": 2106,
+      "harmony_symbol": "KEYCODE_NUMPAD_3",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 86,
+      "mac_symbol": "kVK_ANSI_Keypad4",
+      "harmony": 2107,
+      "harmony_symbol": "KEYCODE_NUMPAD_4",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 87,
+      "mac_symbol": "kVK_ANSI_Keypad5",
+      "harmony": 2108,
+      "harmony_symbol": "KEYCODE_NUMPAD_5",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 88,
+      "mac_symbol": "kVK_ANSI_Keypad6",
+      "harmony": 2109,
+      "harmony_symbol": "KEYCODE_NUMPAD_6",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 89,
+      "mac_symbol": "kVK_ANSI_Keypad7",
+      "harmony": 2110,
+      "harmony_symbol": "KEYCODE_NUMPAD_7",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 90,
+      "mac_symbol": "kVK_F20",
+      "harmony": 2823,
+      "harmony_symbol": "KEYCODE_F20",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 91,
+      "mac_symbol": "kVK_ANSI_Keypad8",
+      "harmony": 2111,
+      "harmony_symbol": "KEYCODE_NUMPAD_8",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 92,
+      "mac_symbol": "kVK_ANSI_Keypad9",
+      "harmony": 2112,
+      "harmony_symbol": "KEYCODE_NUMPAD_9",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 93,
+      "mac_symbol": "kVK_JIS_Yen",
+      "harmony": 2615,
+      "harmony_symbol": "KEYCODE_YEN",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 94,
+      "mac_symbol": "kVK_JIS_Underscore",
+      "harmony": 2603,
+      "harmony_symbol": "KEYCODE_RO",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 95,
+      "mac_symbol": "kVK_JIS_KeypadComma",
+      "harmony": 2118,
+      "harmony_symbol": "KEYCODE_NUMPAD_COMMA",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 96,
+      "mac_symbol": "kVK_F5",
+      "harmony": 2094,
+      "harmony_symbol": "KEYCODE_F5",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 97,
+      "mac_symbol": "kVK_F6",
+      "harmony": 2095,
+      "harmony_symbol": "KEYCODE_F6",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 98,
+      "mac_symbol": "kVK_F7",
+      "harmony": 2096,
+      "harmony_symbol": "KEYCODE_F7",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 99,
+      "mac_symbol": "kVK_F3",
+      "harmony": 2092,
+      "harmony_symbol": "KEYCODE_F3",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 100,
+      "mac_symbol": "kVK_F8",
+      "harmony": 2097,
+      "harmony_symbol": "KEYCODE_F8",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 101,
+      "mac_symbol": "kVK_F9",
+      "harmony": 2098,
+      "harmony_symbol": "KEYCODE_F9",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 102,
+      "mac_symbol": "kVK_JIS_Eisu",
+      "harmony": null,
+      "harmony_symbol": null,
+      "status": "unsupported",
+      "notes": "英数输入法切换无一对一目标语义"
+    },
+    {
+      "mac": 103,
+      "mac_symbol": "kVK_F11",
+      "harmony": 2100,
+      "harmony_symbol": "KEYCODE_F11",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 104,
+      "mac_symbol": "kVK_JIS_Kana",
+      "harmony": null,
+      "harmony_symbol": null,
+      "status": "unsupported",
+      "notes": "かな输入法切换无一对一目标语义"
+    },
+    {
+      "mac": 105,
+      "mac_symbol": "kVK_F13",
+      "harmony": 2816,
+      "harmony_symbol": "KEYCODE_F13",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 106,
+      "mac_symbol": "kVK_F16",
+      "harmony": 2819,
+      "harmony_symbol": "KEYCODE_F16",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 107,
+      "mac_symbol": "kVK_F14",
+      "harmony": 2817,
+      "harmony_symbol": "KEYCODE_F14",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 109,
+      "mac_symbol": "kVK_F10",
+      "harmony": 2099,
+      "harmony_symbol": "KEYCODE_F10",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 110,
+      "mac_symbol": "kVK_ContextualMenu",
+      "harmony": 2067,
+      "harmony_symbol": "KEYCODE_MENU",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 111,
+      "mac_symbol": "kVK_F12",
+      "harmony": 2101,
+      "harmony_symbol": "KEYCODE_F12",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 113,
+      "mac_symbol": "kVK_F15",
+      "harmony": 2818,
+      "harmony_symbol": "KEYCODE_F15",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 114,
+      "mac_symbol": "kVK_Help",
+      "harmony": 2625,
+      "harmony_symbol": "KEYCODE_HELP",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 115,
+      "mac_symbol": "kVK_Home",
+      "harmony": 2081,
+      "harmony_symbol": "KEYCODE_MOVE_HOME",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 116,
+      "mac_symbol": "kVK_PageUp",
+      "harmony": 2068,
+      "harmony_symbol": "KEYCODE_PAGE_UP",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 117,
+      "mac_symbol": "kVK_ForwardDelete",
+      "harmony": 2071,
+      "harmony_symbol": "KEYCODE_FORWARD_DEL",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 118,
+      "mac_symbol": "kVK_F4",
+      "harmony": 2093,
+      "harmony_symbol": "KEYCODE_F4",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 119,
+      "mac_symbol": "kVK_End",
+      "harmony": 2082,
+      "harmony_symbol": "KEYCODE_MOVE_END",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 120,
+      "mac_symbol": "kVK_F2",
+      "harmony": 2091,
+      "harmony_symbol": "KEYCODE_F2",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 121,
+      "mac_symbol": "kVK_PageDown",
+      "harmony": 2069,
+      "harmony_symbol": "KEYCODE_PAGE_DOWN",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 122,
+      "mac_symbol": "kVK_F1",
+      "harmony": 2090,
+      "harmony_symbol": "KEYCODE_F1",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 123,
+      "mac_symbol": "kVK_LeftArrow",
+      "harmony": 2014,
+      "harmony_symbol": "KEYCODE_DPAD_LEFT",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 124,
+      "mac_symbol": "kVK_RightArrow",
+      "harmony": 2015,
+      "harmony_symbol": "KEYCODE_DPAD_RIGHT",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 125,
+      "mac_symbol": "kVK_DownArrow",
+      "harmony": 2013,
+      "harmony_symbol": "KEYCODE_DPAD_DOWN",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    },
+    {
+      "mac": 126,
+      "mac_symbol": "kVK_UpArrow",
+      "harmony": 2012,
+      "harmony_symbol": "KEYCODE_DPAD_UP",
+      "status": "mapped",
+      "notes": "物理键位；待真机验收"
+    }
+  ]
+}
