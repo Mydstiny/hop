@@ -1,0 +1,12 @@
+.hvigor/
+oh_modules/
+build/
+entry/build/
+entry/.cxx/
+.hop-tool-home/
+local.properties
+*.p12
+*.p7b
+*.cer
+tests/.build/
+.sdk-parser-inspection.txt

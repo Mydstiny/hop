@@ -1,0 +1,9 @@
+{
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "Hop PC client",
+  "main": "",
+  "dependencies": {
+    "libhop.so": "file:./src/main/cpp/types/libhop"
+  }
+}

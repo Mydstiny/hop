@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.5)
+project(hop)
+set(CMAKE_CXX_STANDARD 17)
+add_library(hop SHARED napi_bridge.cpp client.cpp)
+target_compile_options(hop PRIVATE -Wall -Wextra -Werror=return-type)
+target_link_libraries(hop PUBLIC libace_napi.z.so libohinput.so libhilog_ndk.z.so)
