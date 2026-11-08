@@ -137,6 +137,16 @@ python3 tools/verify.py          # 统一回归，写critique/build-test.json与
 - 最新包校验已由 `shasum -a 256 -c artifacts/SHA256SUMS` 验证通过。报告保留 `runtimeInputVerified=false`、`deviceInstalled=false`；没有真实权限/图形/Keychain写入、设备安装或物理注入。
 - 未满足的严格出口不变：缺少完整Xcode和本工程/目标设备的合法鸿蒙调试签名，真实系统授权/双机输入与故障验收尚未进行。没有用假SDK、静态工程检查或unsigned HAP替代这些出口，goal继续active。
 
+### 自动续推进第2轮（2026-11-08 16:00–16:01 +08:00）
+
+- 重新核对起点 `a77afe1`、干净工作区、goal第2轮active。按用户要求后续主线程串行推进，不再批量创建agent。
+- 新增 [只读预检](tools/device_preflight.py) 与 [25项安全单测](tools/test_device_preflight.py)。检查SDK真实函数/异步回调/枚举与API20 availability标注（不等同API20真机运行），区分“SDK路径/头文件未知”和“已读真实声明缺失/不匹配”，避免把环境问题冒称API红线。实际检查 `redlineHit=false`，输入库与HMS桌面kit存在。
+- 配置使用本机vendor JSON5解析器，仅输出计数/版本/是否选中配置，不输出密码或材料。HAP身份/最低版本从实际module.json读取，并调用官方帮助确认的 `verify-app -inFile ... -outCertChain ... -outProfile ...`。官方进程exit1，明确 `No Hap Signing Block before ZIP Central Directory`，证实实际HAP无签名块；一般验证器错误另标unverified，不误称unsigned。证书/profile验证输出与日志仅留在git忽略的私有产物目录，不读取UDID/profile内容或私钥，也不改名伪造signed包。
+- 本机当前有3个hdc目标；默认预检拒绝猜测。随后显式选择此前确认的 `192.168.31.140:44491`，只读参数成功复核 `MOR-M1 / 2in1 / API26 / OpenHarmony-7.0.0.109`。未查询其他目标详情，未读取UDID，未安装/启动、配对、弹权限或注入。
+- [实际预检报告](critique/device-preflight.json) 的 `automatedPrerequisitesSatisfied=false`；严格模式进程exit2（这是条件未满足，不是验收通过），仍缺完整Xcode、当前工程合法调试签名配置与有效签名HAP。即使未来SDK验签exit0，也保留profile设备资格/系统授权/实际Xcode构建与全部物理验收待人工验证。
+- 根统一验证加入预检单测，9项命令全部exit0、两项passing信号为true、`failures=[]`。总计82项Python单测（协议40+工程17+预检25）、644 Swift检查、8个TCP场景、354 C++检查、左右2个跨原生输入/返回场景通过。未改变应用功能/范围；Mac仍ad-hoc，鸿蒙仍unsigned。
+- 第1轮已记录的同一外部条件（缺完整Xcode与本工程/目标设备的合法签名）在第2轮连续复核后仍存在。尚未达到完整目标，不标complete；本轮继续保留active，不提前标blocked。最新包校验与构建报告一并保留。
+
 ## 已知待实测项
 
 完整Xcode构建、Mac实际权限/Keychain/图形形态/物理捕获、Intel/macOS14运行、鸿蒙有效调试签名与安装、注入授权与撤销、真实移动/拖拽/全键位、左右边缘穿越、顶栏通知与长时保活、急停/断线/崩溃/SIGKILL恢复。退出/权限或tap丢失时不能保证继续过滤已在远端按住的物理尾部，CapsLock全局锁存与系统保留输入也须实测，不能靠假事件单测保证。

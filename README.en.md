@@ -22,6 +22,8 @@ This repository contains native applications and test tooling. A passing build, 
 
 Run `python3 tools/verify.py` for the combined regression. See the [machine-readable report](<critique/build-test.json>) and [milestone evidence](<PLAN.md>).
 
+Read-only prerequisites: `python3 tools/device_preflight.py --target YOUR_DEVICE_TARGET --require-prerequisites`; see the [current audit](<critique/device-preflight.json>). Its25 safety tests pass, but actual prerequisites do NOT: full Xcode and project signing are absent, and the official SDK verifier confirms no HAP signing block. Default exit0 means report collected only; the strict flag returns2 for missing prerequisites. It never installs/launches apps, requests authorization, reads UDIDs/private keys, or injects input; multiple targets require explicit selection. Verifier outputs stay in git-ignored private artifacts. A valid signature alone still does not prove app/device-profile eligibility or physical runtime acceptance.
+
 ## Security: trusted LAN only
 
 **v1 uses a persistent random token for authentication and cleartext transport. There is no TLS, confidentiality or active-MITM protection.** An attacker on the LAN may observe/modify input or steal the token. A matching six-digit code and two confirmations do not solve that transport limitation. Never expose the TCP port to the Internet or use this on untrusted/public Wi-Fi.

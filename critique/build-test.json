@@ -10,7 +10,7 @@
       ],
       "cwd": ".",
       "exitCode": 0,
-      "durationMs": 37,
+      "durationMs": 34,
       "kind": "tests"
     },
     {
@@ -30,7 +30,17 @@
       ],
       "cwd": ".",
       "exitCode": 0,
-      "durationMs": 103,
+      "durationMs": 104,
+      "kind": "tests"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "tools/test_device_preflight.py"
+      ],
+      "cwd": ".",
+      "exitCode": 0,
+      "durationMs": 90,
       "kind": "tests"
     },
     {
@@ -45,7 +55,7 @@
       ],
       "cwd": ".",
       "exitCode": 0,
-      "durationMs": 659,
+      "durationMs": 669,
       "kind": "tests"
     },
     {
@@ -55,7 +65,7 @@
       ],
       "cwd": ".",
       "exitCode": 0,
-      "durationMs": 18656,
+      "durationMs": 16842,
       "kind": "build_tests"
     },
     {
@@ -65,7 +75,7 @@
       ],
       "cwd": "apps/harmonyos",
       "exitCode": 0,
-      "durationMs": 5452,
+      "durationMs": 5636,
       "kind": "build_tests"
     },
     {
@@ -75,7 +85,7 @@
       ],
       "cwd": ".",
       "exitCode": 0,
-      "durationMs": 1248,
+      "durationMs": 1364,
       "kind": "tests"
     },
     {
@@ -85,12 +95,12 @@
       ],
       "cwd": ".",
       "exitCode": 0,
-      "durationMs": 8722,
+      "durationMs": 8385,
       "kind": "package"
     }
   ],
   "failures": [],
-  "timestamp": "2026-11-08T15:51:57.591674+08:00",
+  "timestamp": "2026-11-08T16:00:37.195632+08:00",
   "scope": "Native CLT universal macOS build + DevEco unsigned HarmonyOS HAP + offline/loopback tests only",
   "xcodeProjectBuild": "not verified: complete Xcode is not installed",
   "harmonySigning": "unsigned: no app/device-specific debug signingConfig",
@@ -100,7 +110,7 @@
     {
       "path": "apps/macos/build/Hop-macos-universal-adhoc.zip",
       "bytes": 271618,
-      "sha256": "6436a5243111fd1dde6f410911dccc20e1e7bb9a25562aa18c4214d7c11fb9f9",
+      "sha256": "81943cb2ef530718487edc03512bffb9cba8a355e264bf154dae41a77060c346",
       "signing": "ad-hoc; not notarized"
     },
     {
@@ -110,7 +120,7 @@
       "signing": "unsigned; requires app/device-specific debug signing"
     }
   ],
-  "durationMs": 34932,
+  "durationMs": 33178,
   "signals": {
     "build.passing": true,
     "tests.passing": true

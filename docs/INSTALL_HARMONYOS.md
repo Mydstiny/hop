@@ -85,6 +85,24 @@ UDID属于设备标识，只用于签发你自己的调试profile，不要公开
 
 **当前工程没有你的有效调试证书/profile，没有产出可安装的签名HAP。** 这项需要开发者身份与设备授权，不能由未签名构建成功推导。证书/profile有效期以实际签发内容为准；到期后用原固定包名重新签发并重签，不承诺固定14天/180天。
 
+### 签名 / 设备只读预检
+
+```sh
+python3 tools/device_preflight.py --target YOUR_DEVICE_TARGET --require-prerequisites
+# 有真正签名包后，也可显式指定它；不会重命名或安装任何包：
+python3 tools/device_preflight.py --target YOUR_DEVICE_TARGET \
+  --hap /ABSOLUTE/PATH/entry-default-signed.hap --require-prerequisites
+```
+
+预检核对本机真实C声明/回调/枚举与API20标注、HMS桌面kit和arm64输入库、当前Xcode、JSON5签名配置、HAP包名与最低API，并调用**SDK官方 `hap-sign-tool.jar verify-app`** 验证实际包。设备端只执行 `hdc list targets` 与指定目标的model/type/API/OS参数读取；不安装、不启动应用、不读取UDID、不配对/弹权限、不做注入。多设备在线时不猜目标，必须指定准确的PC目标。
+
+- 默认exit0只代表成功收集报告，**不代表可安装或验收通过**。
+- `--require-prerequisites` 在条件未满足时exit2；已确认真实头文件中的必需API缺失/签名不一致时exit3，并停止其他工具/设备检查。SDK路径/头文件不可读单独报环境未知，不冒称API不存在。
+- 报告为 [critique/device-preflight.json](<../critique/device-preflight.json>)。验证器按官方CLI要求生成的证书链/profile输出与原始日志只保存在git忽略的 `artifacts/private/preflight/`，预检不读取或输出profile内容、密码或签名私钥。不要公开这些私有输出。
+- SDK验证器exit0也只证明该工具的签名验证成功，仍需人工确认证书信任、profile包名/UDID/有效期及真实系统授权；不能直接宣称可安装。
+
+本次对实际unsigned HAP运行官方验证器，进程exit1，明确报告 **`No Hap Signing Block before ZIP Central Directory`** 与 `Verify Hap failed, signature not found.`，并非只靠文件名判断未签名。工具还发出未在帮助中列出的 `outproof` 警告；预检只使用帮助确认的 `-inFile`、`-outCertChain`、`-outProfile`，不臆造该参数。
+
 ## 5. 安装与启动（签名完成后）
 
 核对签名和来源后，将下列占位路径替换为你实际的签名包；不要把unsigned文件改名成signed：

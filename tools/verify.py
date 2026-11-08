@@ -33,6 +33,7 @@ def main():
         ('tests', [sys.executable, 'tools/generate_keymap.py', '--check'], ROOT),
         ('tests', [sys.executable, 'tools/check_xcode_project.py'], ROOT),
         ('tests', [sys.executable, 'tools/test_xcode_project.py'], ROOT),
+        ('tests', [sys.executable, 'tools/test_device_preflight.py'], ROOT),
         ('tests', [sys.executable, '-m', 'unittest', 'discover', '-s', 'tools/mock-peer', '-v'], ROOT),
         ('build_tests', ['bash', 'apps/macos/scripts/verify.sh'], ROOT),
         ('build_tests', ['bash', 'scripts/verify.sh'], ROOT / 'apps/harmonyos'),

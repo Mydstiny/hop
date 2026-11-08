@@ -25,6 +25,8 @@
 
 可复现总入口：`python3 tools/verify.py`。详见[最终机器可读报告](<critique/build-test.json>)和[严格里程碑记录](<PLAN.md>)。
 
+只读验收预检：`python3 tools/device_preflight.py --target YOUR_DEVICE_TARGET --require-prerequisites`，详见[当前预检报告](<critique/device-preflight.json>)。工具安全性25项测试通过不等于现场条件通过；当前缺完整Xcode与本工程签名，官方验证器确认HAP没有签名块。默认exit0仅表示报告已收集，严格预检缺条件时exit2。它不安装、启动、弹权限或注入；多设备时不猜目标，不读取UDID/私钥。签名验证输出保存在本地忽略的私有产物目录。
+
 ## 安全说明（必读）
 
 **v1默认仅用于可信局域网，token鉴权，明文传输。** 不使用TLS，也没有账号、云或公网穿透。配对码和token并不能防止局域网主动中间人，键鼠数据与token可被监听/篡改。不要在公共Wi-Fi、访客网或公网使用，不做公网端口映射，不在日志中输出token。

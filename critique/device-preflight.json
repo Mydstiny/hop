@@ -1,0 +1,66 @@
+{
+  "timestamp": "2026-11-08T16:00:18.416760+08:00",
+  "scope": "Read-only source/tool/device prerequisite audit; report/private verifier outputs only",
+  "deviceInstalled": false,
+  "runtimeInputVerified": false,
+  "redlineHit": false,
+  "automatedPrerequisitesSatisfied": false,
+  "blockingConditions": [
+    "complete_xcode_unavailable",
+    "harmony_signing_configuration_absent_or_unparsed",
+    "hap_signature_not_verified"
+  ],
+  "manualStillRequired": [
+    "valid app/device debug-profile eligibility and legal system grants",
+    "real Xcode project build",
+    "all unchecked two-device physical/GUI/background/fault acceptance"
+  ],
+  "sdk": {
+    "header": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/native/sysroot/usr/include/multimodalinput/oh_input_manager.h",
+    "headerReadable": true,
+    "apiDeclarationsPass": true,
+    "api20AvailabilityVerified": true,
+    "missingOrMismatched": [],
+    "arm64InputLibraryPresent": true,
+    "desktopKitPresent": true,
+    "headerSha256": "66ddcc53070cdf43b9b8fedda3cdc6a788ae8517e90dfc6b22eeff26d67033c7"
+  },
+  "mac": {
+    "activeDeveloperDirectory": "/Library/Developer/CommandLineTools",
+    "xcodebuildVersionExitCode": 1,
+    "completeXcodeAvailable": false,
+    "projectBuildExecuted": false
+  },
+  "configuration": {
+    "parsed": true,
+    "signingConfigCount": 0,
+    "selectedConfigPresent": false,
+    "compatibleSdkVersion": "6.0.0(20)",
+    "targetSdkVersion": "26.0.0"
+  },
+  "hap": {
+    "exists": true,
+    "bundleMatches": true,
+    "minimumApiMatches": true,
+    "bytes": 1608629,
+    "sha256": "97e501108da0f9df20a9d90057113aec769e3f3f109838da6dc62943656d3264",
+    "signature": {
+      "status": "unsigned",
+      "exitCode": 1,
+      "diagnostic": "No Hap Signing Block before ZIP Central Directory",
+      "privateLog": "artifacts/private/preflight/fa7b7458c63a483395e62f9e45c462ff/verification.log"
+    }
+  },
+  "device": {
+    "queried": true,
+    "targetCount": 3,
+    "eligiblePc": true,
+    "selectedTarget": "192.168.31.140:44491",
+    "facts": {
+      "model": "MOR-M1",
+      "type": "2in1",
+      "api": "26",
+      "os": "OpenHarmony-7.0.0.109"
+    }
+  }
+}
