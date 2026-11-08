@@ -1,0 +1,232 @@
+{
+  "timestamp": "2026-11-08T18:28:35.961693+08:00",
+  "scope": "Isolated read-only probe build/tests + own app/kernel metadata; NOT product build or physical acceptance",
+  "build": "passing",
+  "tests": "passing",
+  "commandsRun": [
+    {
+      "command": [
+        "xcrun",
+        "swiftc",
+        "-swift-version",
+        "5",
+        "/Users/mydestiny/Developer/mouse_transfer/tools/mac_runtime_probe.swift",
+        "-framework",
+        "AppKit",
+        "-o",
+        "/Users/mydestiny/Developer/mouse_transfer/artifacts/test-build/runtime-probe/mac_runtime_probe"
+      ],
+      "exitCode": 0,
+      "output": ""
+    },
+    {
+      "command": [
+        "/Users/mydestiny/Developer/mouse_transfer/artifacts/test-build/runtime-probe/mac_runtime_probe"
+      ],
+      "exitCode": 64,
+      "output": "Usage: mac_runtime_probe /absolute/path/Hop.app\n"
+    },
+    {
+      "command": [
+        "/Users/mydestiny/Developer/mouse_transfer/artifacts/test-build/runtime-probe/mac_runtime_probe",
+        "/Users/mydestiny/Developer/mouse_transfer/artifacts/test-build/runtime-probe/Foreign.app"
+      ],
+      "exitCode": 3,
+      "output": "Refusing to inspect a bundle other than local.hop.macos\n"
+    },
+    {
+      "command": [
+        "/Users/mydestiny/Developer/mouse_transfer/artifacts/test-build/runtime-probe/mac_runtime_probe",
+        "/Users/mydestiny/Developer/mouse_transfer/artifacts/test-build/runtime-probe/AbsentHop.app"
+      ],
+      "exitCode": 2,
+      "output": "{\n  \"accessoryPolicyVerified\" : false,\n  \"bundleIdentifier\" : \"local.hop.macos\",\n  \"bundlePath\" : \"\\/Users\\/mydestiny\\/Developer\\/mouse_transfer\\/artifacts\\/test-build\\/runtime-probe\\/AbsentHop.app\",\n  \"captureEnableAttempted\" : false,\n  \"mainWindowAbsenceVerified\" : false,\n  \"pairConfirmationAttempted\" : false,\n  \"permissionGrantAttempted\" : false,\n  \"permissionQueryAttempted\" : false,\n  \"processes\" : [\n\n  ],\n  \"productLaunchedByProbe\" : false,\n  \"running\" : false,\n  \"runtimeInputVerified\" : false,\n  \"scope\" : \"Only expected bundle path and public NSRunningApplication metadata; not window\\/input proof\"\n}\n"
+    },
+    {
+      "command": [
+        "/Users/mydestiny/Developer/mouse_transfer/artifacts/test-build/runtime-probe/mac_runtime_probe",
+        "/Users/mydestiny/Developer/mouse_transfer/apps/macos/build/Hop.app"
+      ],
+      "exitCode": 0,
+      "output": "{\n  \"accessoryPolicyVerified\" : true,\n  \"bundleIdentifier\" : \"local.hop.macos\",\n  \"bundlePath\" : \"\\/Users\\/mydestiny\\/Developer\\/mouse_transfer\\/apps\\/macos\\/build\\/Hop.app\",\n  \"captureEnableAttempted\" : false,\n  \"mainWindowAbsenceVerified\" : false,\n  \"pairConfirmationAttempted\" : false,\n  \"permissionGrantAttempted\" : false,\n  \"permissionQueryAttempted\" : false,\n  \"processes\" : [\n    {\n      \"accessory\" : true,\n      \"activationPolicy\" : 1,\n      \"finishedLaunching\" : true,\n      \"pid\" : 77378\n    }\n  ],\n  \"productLaunchedByProbe\" : false,\n  \"running\" : true,\n  \"runtimeInputVerified\" : false,\n  \"scope\" : \"Only expected bundle path and public NSRunningApplication metadata; not window\\/input proof\"\n}\n"
+    },
+    {
+      "command": [
+        "/usr/sbin/lsof",
+        "-nP",
+        "-a",
+        "-p",
+        "77378",
+        "-iTCP"
+      ],
+      "exitCode": 0,
+      "output": "COMMAND   PID      USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME\nHop     77378 mydestiny    4u  IPv6 0xd11af47f4ce2a51b      0t0  TCP *:24890 (LISTEN)\n"
+    },
+    {
+      "command": [
+        "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+        "list",
+        "targets"
+      ],
+      "exitCode": 0,
+      "output": "192.168.31.118:40123\n192.168.31.140:44491\n192.168.31.156:38451\n"
+    },
+    {
+      "command": [
+        "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+        "-t",
+        "192.168.31.140:44491",
+        "shell",
+        "param",
+        "get",
+        "const.product.model"
+      ],
+      "exitCode": 0,
+      "output": "MOR-M1 \n"
+    },
+    {
+      "command": [
+        "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+        "-t",
+        "192.168.31.140:44491",
+        "shell",
+        "param",
+        "get",
+        "const.product.devicetype"
+      ],
+      "exitCode": 0,
+      "output": "2in1 \n"
+    },
+    {
+      "command": [
+        "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+        "-t",
+        "192.168.31.140:44491",
+        "shell",
+        "param",
+        "get",
+        "const.ohos.apiversion"
+      ],
+      "exitCode": 0,
+      "output": "26 \n"
+    },
+    {
+      "command": [
+        "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+        "-t",
+        "192.168.31.140:44491",
+        "shell",
+        "param",
+        "get",
+        "const.ohos.fullname"
+      ],
+      "exitCode": 0,
+      "output": "OpenHarmony-7.0.0.109 \n"
+    },
+    {
+      "command": [
+        "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+        "-t",
+        "192.168.31.140:44491",
+        "shell",
+        "pidof",
+        "dev.hop.input"
+      ],
+      "exitCode": 0,
+      "output": "46919\n"
+    },
+    {
+      "command": [
+        "/sbin/route",
+        "-n",
+        "get",
+        "192.168.31.140"
+      ],
+      "exitCode": 0,
+      "output": "   route to: 192.168.31.140\ndestination: 192.168.31.140\n  interface: en1\n      flags: <UP,HOST,DONE,LLINFO,WASCLONED,IFSCOPE,IFREF>\n recvpipe  sendpipe  ssthresh  rtt,msec    rttvar  hopcount      mtu     expire\n       0         0      8820         0        41         0      1500      1157 \n"
+    },
+    {
+      "command": [
+        "/usr/sbin/ipconfig",
+        "getifaddr",
+        "en1"
+      ],
+      "exitCode": 0,
+      "output": "192.168.31.186\n"
+    }
+  ],
+  "failures": [],
+  "compilerDeveloperDirectory": "/Library/Developer/CommandLineTools",
+  "runtimeInputVerified": false,
+  "consentActionAttempted": false,
+  "pairingDataRead": false,
+  "productRestarted": false,
+  "unverified": [
+    "input permissions",
+    "mutual pairing confirmation",
+    "notification/continuous task",
+    "real popup/window appearance",
+    "physical mouse/keyboard input and recovery"
+  ],
+  "mac": {
+    "accessoryPolicyVerified": true,
+    "bundleIdentifier": "local.hop.macos",
+    "bundlePath": "/Users/mydestiny/Developer/mouse_transfer/apps/macos/build/Hop.app",
+    "captureEnableAttempted": false,
+    "mainWindowAbsenceVerified": false,
+    "pairConfirmationAttempted": false,
+    "permissionGrantAttempted": false,
+    "permissionQueryAttempted": false,
+    "processes": [
+      {
+        "accessory": true,
+        "activationPolicy": 1,
+        "finishedLaunching": true,
+        "pid": 77378
+      }
+    ],
+    "productLaunchedByProbe": false,
+    "running": true,
+    "runtimeInputVerified": false,
+    "scope": "Only expected bundle path and public NSRunningApplication metadata; not window/input proof"
+  },
+  "ownedMacSockets": [
+    {
+      "pid": 77378,
+      "exitCode": 0,
+      "output": "COMMAND   PID      USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME\nHop     77378 mydestiny    4u  IPv6 0xd11af47f4ce2a51b      0t0  TCP *:24890 (LISTEN)\n",
+      "listener24890Observed": true,
+      "established24890Count": 0
+    }
+  ],
+  "device": {
+    "queried": true,
+    "selectedTarget": "192.168.31.140:44491",
+    "targetCount": 3,
+    "eligiblePc": true,
+    "facts": {
+      "model": "MOR-M1",
+      "type": "2in1",
+      "api": "26",
+      "os": "OpenHarmony-7.0.0.109"
+    },
+    "receiverPids": [
+      46919
+    ]
+  },
+  "manualIpInterface": "en1",
+  "manualMacIPv4": "192.168.31.186",
+  "startupBasicsVerified": true,
+  "testsRun": [
+    "missing argument rejected",
+    "foreign bundle rejected",
+    "same ID at different path cannot impersonate live app",
+    "live expected-path metadata + explicit limited safety/proof fields"
+  ],
+  "durationMs": 2018,
+  "signals": {
+    "build.passing": true,
+    "tests.passing": true
+  },
+  "critique.score": 5
+}

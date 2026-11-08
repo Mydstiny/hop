@@ -22,11 +22,14 @@
 | 离线 / localhost | 协议Python40测试、Swift644检查 + 8个TCP场景、C++354检查；真实Swift↔C++左右2个输入/返回场景通过（仅假注入SDK） |
 | Xcode静态工程检查 | 40对象/53引用、全部10个Swift源文件及资源/scheme一致；17项正反测试通过，不代替xcodebuild |
 | Mac原生面板离屏 | 284项真实AppKit布局/按钮检查、5个状态PNG；仅内存假数据、无可见窗口，不替代产品启动/菜单栏交互验收 |
+| 只读运行检查 | 原生探针4项检查通过；实际OS accessory角色、TCP24890监听与PC进程已复核，权限/配对/窗口/输入仍不能由此推断 |
 | 真机输入 / 常驻 / 双机验收 | **未验证，不标M0–M4全部完成** |
 
 可复现总入口：`python3 tools/verify.py`。有WindowServer会话的Mac可显式选择 `python3 tools/verify.py --include-native-ui`，额外运行真实AppKit离屏内容视图测试；它创建测试用NSApplication但不显示窗口、不构造产品AppController或捕获/网络/存储服务，不读取真实权限。PNG与报告在构建目录，使用内存假数据，不是真机截图。详见[最终机器可读报告](<critique/build-test.json>)、[严格里程碑记录](<PLAN.md>)与[恢复真机验收的最短路径](<docs/RESUME.md>)。
 
 只读验收预检：`python3 tools/device_preflight.py --target YOUR_DEVICE_TARGET --require-prerequisites`，详见[当前预检报告](<critique/device-preflight.json>)。工具安全性26项测试与11项Xcode发现测试通过不等于现场条件通过；Xcode27.2已完成首次设置且真实Release工程构建通过；签名HAP已通过官方验签，原PC调试连接已恢复并确认MOR-M1/2in1/API26。验签该产物时加 `--hap apps/harmonyos/entry/build/default/outputs/default/entry-default-signed.hap`；最新只读前置条件已通过，后续实际安装/启动见[独立部署记录](<critique/device-install.json>)，仍不是权限/物理输入验收。默认exit0仅表示报告已收集，严格预检缺条件时exit2。它不安装、启动、弹权限或注入；多设备时不猜目标，不读取UDID/私钥。签名验证输出保存在本地忽略的私有产物目录。
+
+在产品已运行时，可单独执行 `python3 -B tools/test_mac_runtime_probe.py --target YOUR_PC_TARGET`，隔离编译只读探针，不重建/重启产品，不触碰权限、配对或输入。探针exit0只表示该4项检查通过，不代表M1通过；见[运行证据](<critique/runtime-readiness.json>)和[本机首轮操作卡](<docs/M1_RUN.md>)。
 
 ## 安全说明（必读）
 

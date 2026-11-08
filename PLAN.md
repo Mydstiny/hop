@@ -166,6 +166,14 @@ python3 tools/verify.py          # 统一回归，写critique/build-test.json与
 - 对同一已验签hash的signed HAP执行该PC的 `hdc install -r`，真实输出 `install bundle successfully`、exit0；随后启动EntryAbility输出 `start ability successfully`，只读确认接收端PID46919。Mac open请求exit0，进程PID77378存活；没有点击授权/配对/共享、没有捕获或注入测试。首次Hilog读取同时使用-x/-z被CLI以CODE -31拒绝（命令表面exit0不作为成功）；按实际帮助修正为仅-x和自有PID/等级过滤，W/E/F当前0行，不据此宣称GUI或后台功能全通过。
 - 原先的缺IDE/签名阻碍现已解除，goal保持active、未标complete。当前两端仅启动；需要合法系统授权与两端核码确认后才能进行真正M1输入验收。任何后续勾选必须对应真实输入/故障证据，不以进程、安装、验签或离屏图替代。
 
+### 自动续推进第4轮（2026-11-08 18:14–18:28 +08:00）
+
+- 基于当前工作树/进程而非旧叙述复核：两端原PID仍存活，PC调试端点仍授权。Mac真实内核TCP24890为LISTEN，没有观察到该端口ESTABLISHED会话；这不能定位哪个权限/配对步骤未完成，更不是实际输入通过。
+- 新增[只读原生元数据探针](<tools/mac_runtime_probe.swift>)及[独立构建测试入口](<tools/test_mac_runtime_probe.py>)，严格限定local.hop.macos及预期bundle路径。实编译exit0，4项参数/身份/同ID不同路径/真实元数据检查通过；OS实际返回accessory policy=1、finishedLaunching=true、PID77378。明确不观察其他应用窗口、不查TCC/Keychain/Preferences、不授权/核码/启用捕获或注入。
+- 新[运行检查报告](<critique/runtime-readiness.json>)与原始日志单列，两个passing信号仅属于该隔离探针，不覆盖原完整产品构建报告。真实复核MOR-M1/2in1/API26和接收端PID46919；本机到PC的路由为en1，手填Mac IPv4为192.168.31.186。只读内核/路由，不向单客户端产品监听端口建立探测连接，不为刷新报告重编译、重签或重启正在等待操作的产品。
+- 查实际HMS SDK声明确认addToStatusBar同步重载返回void，现有调用没有误漏await，不制造未经证实的修复。设备 `bgtaskmgr -h` 正文为not found，尽管hdc表面exit0，仍判未知；`aa dump -e dev.hop.input/entry/HopStatusBarAbility` 仅查询自有扩展并返回无记录，不据此推断图标/后台任务不存在。没有采集全局任务、窗口或其他应用数据，也没有API红线证据。
+- 新增[首轮鼠标操作卡](<docs/M1_RUN.md>)，写明准确英文按钮、通知/注入授权、Mac隐私设置、本人双方核码及最小穿越/返回动作。当前缺少实际UI和物理操作观察，不把未知状态标成blocked或M1通过；goal继续active，后续需从操作者的界面/鼠标结果推进，而不是重复假注入测试充数。
+
 ## 已知待实测项
 
 Mac实际权限/Keychain/图形形态/物理捕获、Intel/macOS14运行、鸿蒙注入授权与撤销、真实移动/拖拽/全键位、左右边缘穿越、顶栏通知与长时保活、急停/断线/崩溃/SIGKILL恢复。退出/权限或tap丢失时不能保证继续过滤已在远端按住的物理尾部，CapsLock全局锁存与系统保留输入也须实测，不能靠假事件单测保证。
