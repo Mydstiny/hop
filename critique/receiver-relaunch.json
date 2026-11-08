@@ -1,0 +1,24 @@
+{
+  "timestamp": "2026-11-08T19:52:47.868813+08:00",
+  "scope": "Cold start of absent own receiver only; own PID logs, not other apps or physical acceptance",
+  "target": "192.168.31.140:44491",
+  "bundleIdentifier": "dev.hop.input",
+  "abilityStartSucceeded": true,
+  "receiverPid": 53122,
+  "commandsRun": [
+    {"command": "hdc -t 192.168.31.140:44491 shell aa start -a EntryAbility -b dev.hop.input -m entry", "exitCode": 0, "output": "start ability successfully."},
+    {"command": "hdc -t 192.168.31.140:44491 shell pidof dev.hop.input", "exitCode": 0, "output": "53122"},
+    {"command": "hdc -t 192.168.31.140:44491 shell hilog -x -P 53122 -L W,E,F", "exitCode": 0, "outputScope": "Only causal own-process errors retained below; full raw log stays ignored locally"}
+  ],
+  "errorEvidence": [
+    "11-08 19:52:46.852 53122 53122 E A05107/dev.hop.input/StatusbarManager: JsStatusbarManager: The size of the pixelmap exceeds the limit.",
+    "11-08 19:52:46.858 53122 53122 E C01203/dev.hop.input/Ans: null uiContent",
+    "11-08 19:52:46.858 53122 53122 E A00000/dev.hop.input/Hop: Startup failed: Error: Internal error. Possible cause: 1.IPC communication failed. 2.Memory operation error"
+  ],
+  "interpretation": "Startup failed before TASK_KEEPING. SDK requires loaded UIContent for requestEnableNotification; main ability intentionally has none. Pixelmap registration also needs proper vp/density handling and callback outcome validation.",
+  "rawLog": "critique/receiver-relaunch.log",
+  "runtimeInputVerified": false,
+  "permissionGrantAttempted": false,
+  "pairConfirmationAttempted": false,
+  "limitations": "No inference of missing input SDK APIs, successful tray rendering, legal residency or actual mouse injection from process survival or log silence"
+}

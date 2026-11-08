@@ -18,16 +18,18 @@
 | 项目 | 结果 |
 |---|---|
 | Mac原生通用构建 | CLT脚本与**真实Xcode27.2 Release工程构建均通过**；产物复核arm64 + x86_64、最低14.0、LSUIElement=true |
-| 鸿蒙DevEco构建 | 用户本机签名已绑定，**signed HAP经官方SDK验签通过**，dev.hop.input/最低API20；已在MOR-M1 PC安装并启动，未验真实输入 |
+| 鸿蒙DevEco构建 | **signed HAP官方SDK验签通过**，dev.hop.input/最低API20；顶栏/通知启动修复已装到MOR-M1，最新启动被设备锁屏10106102拒绝，尚未复验运行效果 |
 | 离线 / localhost | 协议Python40测试、Swift644检查 + 8个TCP场景、C++354检查；真实Swift↔C++左右2个输入/返回场景通过（仅假注入SDK） |
 | Xcode静态工程检查 | 40对象/53引用、全部10个Swift源文件及资源/scheme一致；17项正反测试通过，不代替xcodebuild |
 | Mac原生面板离屏 | 284项真实AppKit布局/按钮检查、5个状态PNG；仅内存假数据、无可见窗口，不替代产品启动/菜单栏交互验收 |
-| 只读运行检查 | 原生探针4项检查通过；实际OS accessory角色、TCP24890监听与PC进程已复核，权限/配对/窗口/输入仍不能由此推断 |
+| 只读运行检查 | 原生探针4项检查通过；18:28实际OS accessory角色、TCP24890监听与PC进程快照已复核，权限/配对/窗口/输入仍不能由此推断 |
 | 真机输入 / 常驻 / 双机验收 | **未验证，不标M0–M4全部完成** |
+
+最新完整离线回归12条命令exit0：合计100项Python测试（协议40、工程17、预检26、Xcode发现11、包元数据6），另有上表Swift/C++/TCP/AppKit检查。为保护正在运行的Mac，本次使用 `HOP_BUILD_DIR="$PWD/artifacts/test-build/live-safe-macos" python3 -B tools/verify.py --include-native-ui`，真实重新构建到隔离目录；原Mac PID与可执行文件SHA256前后不变，见[保留运行实例证据](<critique/mac-live-preservation.json>)。输出覆盖位置可变时，校验清单严格记录实际新包，不能误哈希旧默认包。
 
 可复现总入口：`python3 tools/verify.py`。有WindowServer会话的Mac可显式选择 `python3 tools/verify.py --include-native-ui`，额外运行真实AppKit离屏内容视图测试；它创建测试用NSApplication但不显示窗口、不构造产品AppController或捕获/网络/存储服务，不读取真实权限。PNG与报告在构建目录，使用内存假数据，不是真机截图。详见[最终机器可读报告](<critique/build-test.json>)、[严格里程碑记录](<PLAN.md>)与[恢复真机验收的最短路径](<docs/RESUME.md>)。
 
-只读验收预检：`python3 tools/device_preflight.py --target YOUR_DEVICE_TARGET --require-prerequisites`，详见[当前预检报告](<critique/device-preflight.json>)。工具安全性26项测试与11项Xcode发现测试通过不等于现场条件通过；Xcode27.2已完成首次设置且真实Release工程构建通过；签名HAP已通过官方验签，原PC调试连接已恢复并确认MOR-M1/2in1/API26。验签该产物时加 `--hap apps/harmonyos/entry/build/default/outputs/default/entry-default-signed.hap`；最新只读前置条件已通过，后续实际安装/启动见[独立部署记录](<critique/device-install.json>)，仍不是权限/物理输入验收。默认exit0仅表示报告已收集，严格预检缺条件时exit2。它不安装、启动、弹权限或注入；多设备时不猜目标，不读取UDID/私钥。签名验证输出保存在本地忽略的私有产物目录。
+只读验收预检：`python3 tools/device_preflight.py --target YOUR_DEVICE_TARGET --require-prerequisites`，详见[当前预检报告](<critique/device-preflight.json>)。工具安全性26项测试与11项Xcode发现测试通过不等于现场条件通过；Xcode27.2已完成首次设置且真实Release工程构建通过；签名HAP已通过官方验签，原PC调试连接已恢复并确认MOR-M1/2in1/API26。验签该产物时加 `--hap apps/harmonyos/entry/build/default/outputs/default/entry-default-signed.hap`；最新只读前置条件已通过，初次安装/启动见[历史部署记录](<critique/device-install.json>)，当前顶栏启动修复及锁屏拒绝见[最新修复部署](<critique/receiver-startup-fix.json>)；前置条件通过不表示设备已解锁，更不是权限/物理输入验收。默认exit0仅表示报告已收集，严格预检缺条件时exit2。它不安装、启动、弹权限或注入；多设备时不猜目标，不读取UDID/私钥。签名验证输出保存在本地忽略的私有产物目录。
 
 在产品已运行时，可单独执行 `python3 -B tools/test_mac_runtime_probe.py --target YOUR_PC_TARGET`，隔离编译只读探针，不重建/重启产品，不触碰权限、配对或输入。探针exit0只表示该4项检查通过，不代表M1通过；见[运行证据](<critique/runtime-readiness.json>)和[本机首轮操作卡](<docs/M1_RUN.md>)。
 
@@ -84,7 +86,7 @@ bash apps/macos/scripts/package.sh
 bash apps/macos/scripts/xcode-build.sh
 ```
 
-[Mac安装/权限/签名教程](<docs/INSTALL_MAC.md>) · [Mac实现与验证边界](<apps/macos/IMPLEMENTATION.md>)。CLT构建和真实Xcode工程构建分开；本次机器没有完整Xcode。当前包为ad-hoc签名，未公证，不是Developer ID发行版。
+[Mac安装/权限/签名教程](<docs/INSTALL_MAC.md>) · [Mac实现与验证边界](<apps/macos/IMPLEMENTATION.md>)。CLT构建和真实Xcode工程构建分开；本机完整Xcode27.2已完成真实Release构建。当前包为ad-hoc签名，未公证，不是Developer ID发行版。
 
 ### HarmonyOS PC
 

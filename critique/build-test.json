@@ -10,7 +10,7 @@
       ],
       "cwd": ".",
       "exitCode": 0,
-      "durationMs": 36,
+      "durationMs": 35,
       "kind": "tests"
     },
     {
@@ -20,7 +20,7 @@
       ],
       "cwd": ".",
       "exitCode": 0,
-      "durationMs": 74,
+      "durationMs": 54,
       "kind": "tests"
     },
     {
@@ -30,7 +30,7 @@
       ],
       "cwd": ".",
       "exitCode": 0,
-      "durationMs": 119,
+      "durationMs": 107,
       "kind": "tests"
     },
     {
@@ -40,7 +40,17 @@
       ],
       "cwd": ".",
       "exitCode": 0,
-      "durationMs": 77,
+      "durationMs": 70,
+      "kind": "tests"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "tools/test_verify.py"
+      ],
+      "cwd": ".",
+      "exitCode": 0,
+      "durationMs": 74,
       "kind": "tests"
     },
     {
@@ -50,7 +60,7 @@
       ],
       "cwd": ".",
       "exitCode": 0,
-      "durationMs": 99,
+      "durationMs": 100,
       "kind": "tests"
     },
     {
@@ -65,7 +75,7 @@
       ],
       "cwd": ".",
       "exitCode": 0,
-      "durationMs": 656,
+      "durationMs": 626,
       "kind": "tests"
     },
     {
@@ -75,7 +85,7 @@
       ],
       "cwd": ".",
       "exitCode": 0,
-      "durationMs": 23973,
+      "durationMs": 62864,
       "kind": "build_tests"
     },
     {
@@ -85,7 +95,7 @@
       ],
       "cwd": "apps/harmonyos",
       "exitCode": 0,
-      "durationMs": 6902,
+      "durationMs": 5524,
       "kind": "build_tests"
     },
     {
@@ -95,7 +105,7 @@
       ],
       "cwd": ".",
       "exitCode": 0,
-      "durationMs": 1263,
+      "durationMs": 1193,
       "kind": "tests"
     },
     {
@@ -105,7 +115,7 @@
       ],
       "cwd": ".",
       "exitCode": 0,
-      "durationMs": 3179,
+      "durationMs": 2543,
       "kind": "tests"
     },
     {
@@ -115,12 +125,12 @@
       ],
       "cwd": ".",
       "exitCode": 0,
-      "durationMs": 9779,
+      "durationMs": 7673,
       "kind": "package"
     }
   ],
   "failures": [],
-  "timestamp": "2026-11-08T17:57:14.884042+08:00",
+  "timestamp": "2026-11-08T20:06:22.148575+08:00",
   "scope": "Native CLT universal macOS build + DevEco HAP with per-artifact signing state + offline/loopback/optional offscreen tests; no device operation",
   "xcodeProjectBuild": "not run by this offline verifier; use apps/macos/scripts/xcode-build.sh for actual project build",
   "harmonySigning": "signed; SDK verification passed; device eligibility untested",
@@ -138,25 +148,25 @@
   },
   "artifacts": [
     {
-      "path": "apps/macos/build/Hop-macos-universal-adhoc.zip",
+      "path": "artifacts/test-build/live-safe-macos/Hop-macos-universal-adhoc.zip",
       "bytes": 275698,
-      "sha256": "a061ab46304cb2c816786b52938298e7303db64fc70228b81d345641ede5d7da",
+      "sha256": "e483a087729bf02822ef174004261a5ce68380e2138a2dbdd1d2ec878315af9e",
       "signing": "ad-hoc; not notarized"
     },
     {
       "path": "apps/harmonyos/entry/build/default/outputs/default/entry-default-unsigned.hap",
-      "bytes": 1608634,
-      "sha256": "17e9f85ce6133ab628dd18c323694ad0e9491442fcca78d60bb80791fb425de6",
+      "bytes": 1615038,
+      "sha256": "3acb6dbcf878e0d75b85867420df320120ed8d31a22444cc17a59ec0d96955f2",
       "signing": "unsigned; requires app/device-specific debug signing"
     },
     {
       "path": "apps/harmonyos/entry/build/default/outputs/default/entry-default-signed.hap",
-      "bytes": 1674455,
-      "sha256": "58f8f10b6932b51903ceb9da1fe06f48059e779e46147430675a3b4550c2e225",
-      "signing": "SDK-verified signed debug HAP; target-device eligibility not yet verified"
+      "bytes": 1682940,
+      "sha256": "8ca36342f2f9e2b82c063dc0f30a74191fcd27d59a8d72a1c0769987f860aa15",
+      "signing": "SDK-verified signed debug HAP; device eligibility not verified by this offline command"
     }
   ],
-  "durationMs": 46161,
+  "durationMs": 80864,
   "signals": {
     "build.passing": true,
     "tests.passing": true

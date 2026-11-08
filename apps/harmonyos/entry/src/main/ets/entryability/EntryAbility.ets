@@ -1,9 +1,9 @@
 import { UIAbility } from '@kit.AbilityKit';
-import { window } from '@kit.ArkUI';
+import { window, display } from '@kit.ArkUI';
 import { image } from '@kit.ImageKit';
 import { backgroundTaskManager } from '@kit.BackgroundTasksKit';
 import { wantAgent } from '@kit.AbilityKit';
-import { notificationManager } from '@kit.NotificationKit';
+import { BusinessError } from '@kit.BasicServicesKit';
 import { statusBarManager } from '@kit.DeskTopExtensionKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { HopService } from '../HopService';
@@ -11,7 +11,10 @@ import { HopService } from '../HopService';
 export default class EntryAbility extends UIAbility {
   private icons?: statusBarManager.StatusBarIcon;
   private starting: boolean = false;
+  private windowReady: boolean = false;
+  private trayReady: boolean = false;
   onWindowStageCreate(stage: window.WindowStage): void {
+    this.windowReady = true;
     // Deliberately do not load any content into the UIAbility main window.
     // Only the system-owned statusbar popup loads an ArkUI page.
     // API14+ public Stage API; configured by matching ability metadata.
@@ -22,65 +25,112 @@ export default class EntryAbility extends UIAbility {
     });
   }
   onForeground(): void {
-    // Notification/launcher activations must not turn this tray utility into a window.
-    if (!this.starting) { this.context.moveAbilityToBackground().catch(() => {}); }
+    // A user relaunch can retry a failed continuous task without adding a second icon.
+    // Do not background the ability while the initial asynchronous startup is in flight.
+    if (!this.windowReady || this.starting) { return; }
+    if (!HopService.instance.view.background) {
+      this.start().catch((error: Error) => { HopService.instance.view.message = String(error); });
+    } else {
+      this.context.moveAbilityToBackground().catch(() => {});
+    }
   }
   private async icon(light: boolean): Promise<image.PixelMap> {
-    const pixels = new Uint8Array(24 * 24 * 4);
-    for (let y = 4; y < 20; y++) {
-      for (let x = 4; x < 20; x++) {
-        if (x < 7 || x > 16 || (y > 10 && y < 14)) {
-          const i = (y * 24 + x) * 4;
+    // SDK recommendation is 24 vp, not 24 raw pixels. Convert using the display density.
+    const density = display.getDefaultDisplaySync().densityPixels;
+    if (!Number.isFinite(density) || density <= 0 || density > 8) { throw new Error('Invalid icon display density'); }
+    const side = Math.max(1, Math.round(24 * density));
+    const pixels = new Uint8Array(side * side * 4);
+    for (let y = 0; y < side; y++) {
+      for (let x = 0; x < side; x++) {
+        const vx = (x + 0.5) / density;
+        const vy = (y + 0.5) / density;
+        if (vx >= 4 && vx < 20 && vy >= 4 && vy < 20 && (vx < 7 || vx > 16 || (vy > 10 && vy < 14))) {
+          const i = (y * side + x) * 4;
           pixels[i] = pixels[i + 1] = pixels[i + 2] = light ? 255 : 0;
           pixels[i + 3] = 255;
         }
       }
     }
-    return image.createPixelMap(pixels.buffer, { size: { width: 24, height: 24 }, pixelFormat: image.PixelMapFormat.RGBA_8888 });
+    hilog.info(0x0000, 'Hop', 'Icon size %{public}dpx, display density %{public}f', side, density);
+    return image.createPixelMap(pixels.buffer, { size: { width: side, height: side }, pixelFormat: image.PixelMapFormat.RGBA_8888 });
   }
   private async start(): Promise<void> {
     if (this.starting) { return; }
     this.starting = true;
     const service = HopService.instance;
+    let phase: string = 'initialize';
+    let taskStarted: boolean = false;
     try {
       if (!canIUse('SystemCapability.PCService.StatusBarManager')) { throw new Error('PC statusbar is unavailable'); }
       service.initialize(this.context, true);
-      this.icons = { white: await this.icon(true), black: await this.icon(false) };
-      statusBarManager.addToStatusBar(this.context, {
-        icons: this.icons,
-        quickOperation: { title: 'Hop', height: 620, abilityName: 'HopStatusBarAbility', moduleName: 'entry' },
-        statusBarGroupMenu: [[
-          { title: 'Disconnect', menuAction: { abilityName: 'EntryAbility', notifyOnly: true, menuCode: 'disconnect' } },
-          { title: 'Quit Hop', menuAction: { abilityName: 'EntryAbility', notifyOnly: true, menuCode: 'quit' } }
-        ]]
-      });
-      statusBarManager.on('rightMenuClick', (event) => {
-        if (event.data?.menuCode === 'disconnect') { service.disconnect(); }
-        if (event.data?.menuCode === 'quit') {
-          this.quit().catch((error: Error) => { service.view.message = `Cannot quit cleanly: ${String(error)}`; });
-        }
-      });
-      await notificationManager.requestEnableNotification(this.context);
+      if (!this.trayReady) {
+        phase = 'icon creation';
+        this.icons = { white: await this.icon(true), black: await this.icon(false) };
+        const icons = this.icons;
+        phase = 'tray registration';
+        await new Promise<void>((resolve, reject) => {
+          statusBarManager.addToStatusBar(this.context, {
+            icons: icons,
+            quickOperation: { title: 'Hop', height: 620, abilityName: 'HopStatusBarAbility', moduleName: 'entry' },
+            statusBarGroupMenu: [[
+              { title: 'Disconnect', menuAction: { abilityName: 'EntryAbility', notifyOnly: true, menuCode: 'disconnect' } },
+              { title: 'Quit Hop', menuAction: { abilityName: 'EntryAbility', notifyOnly: true, menuCode: 'quit' } }
+            ]]
+          }, (error) => {
+            if (error && error.code !== 0) { reject(error); } else { resolve(); }
+          });
+        });
+        this.trayReady = true;
+        hilog.info(0x0000, 'Hop', 'Statusbar registration callback succeeded');
+        statusBarManager.on('rightMenuClick', (event) => {
+          if (event.data?.menuCode === 'disconnect') { service.disconnect(); }
+          if (event.data?.menuCode === 'quit') {
+            this.quit().catch((error: Error) => { service.view.message = `Cannot quit cleanly: ${String(error)}`; });
+          }
+        });
+      }
+      phase = 'notification agent';
       const agent = await wantAgent.getWantAgent({
         wants: [{ bundleName: 'dev.hop.input', abilityName: 'EntryAbility' }],
         operationType: wantAgent.OperationType.START_ABILITY,
         requestCode: 1,
         wantAgentFlags: [wantAgent.WantAgentFlags.UPDATE_PRESENT_FLAG]
       });
-      // TASK_KEEPING is the legitimate PC/2-in-1 mode; not fake audio/data transfer.
-      // The platform continuous task supplies its required persistent notification.
+      // TASK_KEEPING supplies its own required system notification. Calling
+      // requestEnableNotification here is invalid: this ability has no UIContent.
+      // Do not fake a window or bypass notification verification; task API failures block connections.
+      phase = 'continuous task';
       await backgroundTaskManager.startBackgroundRunning(this.context, backgroundTaskManager.BackgroundMode.TASK_KEEPING, agent);
+      taskStarted = true;
+      phase = 'continuous task verification';
+      const tasks = await backgroundTaskManager.getAllContinuousTasks(this.context);
+      const ownTasks = tasks.filter((task: backgroundTaskManager.ContinuousTaskInfo) =>
+        task.abilityName === 'EntryAbility' && task.wantAgentBundleName === 'dev.hop.input' && !task.suspendState);
+      if (ownTasks.length === 0) { throw new Error('No active own continuous task after start'); }
+      const task = ownTasks[0];
+      hilog.info(0x0000, 'Hop', 'TASK_KEEPING active: task %{public}d, notification %{public}d, modes %{public}s',
+        task.continuousTaskId, task.notificationId, task.backgroundModes.join(','));
       service.view.background = true;
       service.browse();
     } catch (error) {
+      if (taskStarted) {
+        try { await backgroundTaskManager.stopBackgroundRunning(this.context); } catch (_) {}
+      }
       service.view.background = false;
-      service.view.message = 'Background task/notification unavailable. Relaunch Hop and allow notifications.';
-      hilog.error(0x0000, 'Hop', 'Startup failed: %{public}s', String(error));
       service.disconnect();
+      const problem = error as BusinessError;
+      service.view.message = `Startup failed at ${phase}: ${problem.code || 0} ${problem.message || String(error)}`;
+      hilog.error(0x0000, 'Hop', '%{public}s', service.view.message);
     } finally {
+      // A background transition failure must not leave the startup lock stuck forever.
       // Never display a main-window fallback, including errors.
-      await this.context.moveAbilityToBackground();
-      this.starting = false;
+      try {
+        await this.context.moveAbilityToBackground();
+      } catch (error) {
+        hilog.warn(0x0000, 'Hop', 'Background transition unavailable: %{public}s', String(error));
+      } finally {
+        this.starting = false;
+      }
     }
   }
   private async quit(): Promise<void> {

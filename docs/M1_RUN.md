@@ -6,14 +6,14 @@
 
 - Mac应用身份 `local.hop.macos`，实际LaunchServices activationPolicy=accessory，进程完成启动，TCP24890正在监听。
 - Mac到PC的本次路由接口为 **en1**，Mac局域网IPv4快照为 **192.168.31.186**。地址可能变化，以下命令产生的最新[运行检查报告](<../critique/runtime-readiness.json>)优先。
-- 接收端 `dev.hop.input` 已在MOR-M1 / 2in1 / API26安装启动；只读复核进程存活。不是手机/平板目标。
+- 接收端 `dev.hop.input` 的初版曾在MOR-M1 / 2in1 / API26安装启动，18:28进程存活；19:51复核已没有该进程。用户报告顶栏/面板异常后，冷启动捕获到图标尺寸和 `Ans: null uiContent` 错误。修复版已官方验签并安装，最新正常启动被PC锁屏10106102拒绝；必须本人先解锁，尚未验证新版图标/任务/通知。不是手机/平板目标。
 - 当前报告没有观察到Mac TCP24890的ESTABLISHED会话；这不证明具体哪个权限/配对步骤缺失，也不能据此冒称注入故障。
 - accessory/进程/监听不等于“无主窗口已验收”、常驻通知有效、授权成功、配对成功或实际输入成功。
 
 ## 实际操作（只先试鼠标）
 
 1. **安全准备**：两端同一可信LAN；保留直接操作Mac的键鼠/触控板；不要聚焦终端、密码框或未保存文档。记住 **Ctrl+Option+Command+Esc** 急停。v1是明文TCP+token，不能用于公共网络。
-2. **鸿蒙顶栏H图标**：点击打开Hop小面板。若系统正在询问通知，请本人选择是否允许；合法TASK_KEEPING任务及系统常驻通知就绪后才能连接。若面板显示 `Background task / persistent notification not active`，先处理通知/后台条件，再使用Hop右键菜单 `Quit Hop` 后正常重启；不要伪装音频、关闭全局安全检查或只靠进程存活判定成功。
+2. **解锁并启动鸿蒙Hop**：先本人解锁PC并保持亮屏，从启动器正常打开Hop（或让开发工具正常启动）。10106102表示系统锁屏拒绝启动，即使hdc表面exit0也不算成功；不要关闭开发者模式或绕过锁屏。点顶栏H打开小面板。本版不再从没有UIContent的主Ability请求普通通知弹窗，而由合法TASK_KEEPING API产生系统持续任务通知，并查询自有活动任务；它失败时连接仍禁用。若报告9800006，检查系统设置中Hop的通知许可，再本人正常重启Hop，不伪装音频、不关闭全局安全检查、不靠进程存活判定成功。
 3. **鸿蒙授权**：点 `Authorize`，本人处理系统注入授权弹窗；应看到 `System injection authorized`。拒绝授权时不应建立可用注入会话，Mac本地键鼠仍应可用。不要给鸿蒙配置全局捕获、CONTROL_DEVICE或无障碍旁路。
 4. **Mac菜单栏Hop**：打开小面板，按引导允许Hop的辅助功能、输入监控以及必要的本地网络访问；系统若要求重启Hop，先正常退出再打开。不要关闭全局Gatekeeper/防火墙。先保持 `Enable sharing` 关闭，选择实际左右方向。
 5. **配对窗口**：Mac点 `Pair a computer…`。鸿蒙在 `Mac LAN IP (manual fallback)` 填最新Mac地址（本次为 `192.168.31.186`），点 `Pair using this IP`。该IP是Mac，不是PC的调试地址，端口也不是hdc端口。

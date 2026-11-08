@@ -134,6 +134,14 @@ Requires `ohos.permission.KEEP_BACKGROUND_RUNNING`, declared matching ability ba
 
 Do **not** disguise idle input sharing as audio playback or data transfer. DATA_TRANSFER1 is upload/download and is canceled if progress is not updated for >10minutes. MULTI_DEVICE_CONNECTION6 is documented for distributed service connection/casting, not generic TCP residency. New `BackgroundTaskMode` / `ContinuousTaskRequest` overloads are API21+, special-scenario processing mode13 is API22 and ACL-gated (API24 special-scenario ACL); none is needed for API20 PC taskKeeping. A statusbar UIExtensionAbility itself cannot request the Stage UIAbility-only continuous task.
 
+### Actual cold-start failure found on the PC (2026-11-08)
+
+Own-PID logs reported `The size of the pixelmap exceeds the limit` and notification `Ans: null uiContent`, followed by Hop startup failure. The [icon contract](</Applications/DevEco-Studio.app/Contents/sdk/default/hms/ets/api/@hms.pcService.statusBarManager.d.ts#L81-L104>) recommends24 **vp**, not raw pixels. The receiver now derives pixel dimensions from display density and awaits the callback overload of addToStatusBar (it is not a Promise-returning API). Callback success is registration evidence only, not visual acceptance.
+
+The [notification precondition](</Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/ets/api/@ohos.notificationManager.d.ts#L770-L799>) explicitly requires loaded UI content before requestEnableNotification. Calling it from a deliberately contentless main UIAbility was invalid. Do not create a visible main-window workaround or cast/spoof another context. The receiver instead requests legitimate TASK_KEEPING and lets the platform create its required notification; any9800006 notification verification failure still blocks connection. API20 [getAllContinuousTasks](</Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/ets/api/@ohos.resourceschedule.backgroundTaskManager.d.ts#L971-L990>) is queried through the owner context, filtered to Hop/EntryAbility, and only its own active task/notification IDs are logged. This is not a global task dump.
+
+The fixed signed HAP built/verified/installed, but normal launch was refused with10106102 because the PC is locked. Thus actual registration, task and notification success of this fix remain **unverified**. Unlock normally as the operator; do not disable developer mode or bypass the lock just because CLI diagnostic text suggests a workaround. See [deployment evidence](<../critique/receiver-startup-fix.json>).
+
 ## 5. Build availability, caches, commands
 
 Bundled official templates are available; no external project source is needed:

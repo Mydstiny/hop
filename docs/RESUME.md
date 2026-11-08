@@ -5,10 +5,10 @@
 本工程已完成可复现的原生构建、协议/安全逻辑离线验证和左右跨原生回环；**未完成严格M0–M4真机出口**。SDK输入API红线检查通过。当前已验证与仍待本人操作的条件如下：
 
 1. 本机Xcode27.2首次设置已经通过，真实Release工程构建exit0，双架构/最低14.0/LSUIElement=true已核对。原CLT仍可单次指定使用，不需修改全局选择。
-2. 用户本机签名已绑定，signed HAP官方验签通过、dev.hop.input/最低API20正确；MOR-M1/2in1/API26 PC已重连、安装和启动成功，Mac产品也已启动。还没有代理点击授权、配对确认或开启捕获，真实输入/故障验收仍未进行。
+2. 用户本机签名已绑定，signed HAP官方验签通过、dev.hop.input/最低API20正确；MOR-M1/2in1/API26 PC已重连且接受安装，初版曾启动；用户报告顶栏/面板异常后已捕获真实图标尺寸/通知空UIContent错误并修复构建。新版20:01安装成功，但最新正常启动被PC锁屏10106102拒绝，必须本人解锁后复验。Mac原产品仍运行且完整回归期间PID/可执行文件SHA256不变。还没有代理点击授权、配对确认或开启捕获，真实输入/故障验收仍未进行。
 3. 系统权限、真实输入、菜单栏/顶栏与保活、断线/急停/SIGKILL及最低版本仍需按 [未勾选验收清单](<ACCEPTANCE.md>) 验证。
 
-本机已完成下面的工具/签名准备步骤；换机或重装时仍需按步骤复核。当前重点是系统授权、两端核对配对码，然后按M1开始物理验收；本机直接按[首次鼠标操作卡](<M1_RUN.md>)操作，包含最新Mac地址的读取方式和准确按钮名。
+本机已完成下面的工具/签名准备步骤；换机或重装时仍需按步骤复核。当前先本人解锁PC并保持亮屏，让修复版正常启动，核实实际顶栏与持续任务通知，再做系统授权、双端核码与M1物理验收；本机直接按[首次鼠标操作卡](<M1_RUN.md>)操作，包含最新Mac地址的读取方式和准确按钮名。
 
 不需要把开发者密码、私钥、证书包、profile或UDID发到聊天或提交仓库。不要以别的应用签名、改名unsigned包、关闭签名/Gatekeeper检查或无障碍旁路替代这些条件。
 
@@ -17,7 +17,10 @@
 从仓库根目录运行：
 
 ```sh
+# 产品未运行时可用默认构建位置：
 python3 tools/verify.py
+# 产品已运行时隔离Mac输出，避免改写正在运行的bundle：
+HOP_BUILD_DIR="$PWD/artifacts/test-build/live-safe-macos" python3 -B tools/verify.py --include-native-ui
 ```
 
 它实际构建Mac通用原生app和鸿蒙HAP（有本机有效签名配置时还生成并官方验签signed包），并运行协议/工程/预检安全测试、Swift恢复测试、C++录制假SDK测试及左右跨原生回环；不会安装/启动产品应用或捕获/注入物理输入。最新结果见 [构建报告](<../critique/build-test.json>)、[包校验和](<../artifacts/SHA256SUMS>)。
@@ -71,4 +74,4 @@ python3 tools/device_preflight.py --target YOUR_DEVICE_TARGET \
 
 ## English
 
-The real Xcode27.2 Release project build and signed HarmonyOS debug package are now verified; the confirmed MOR-M1 PC accepted installation and ability startup, and the Mac host process is running. Remaining gates are legitimate system grants, mutual code confirmation and the unchecked physical acceptance checklist. Do not send or commit credentials/UDIDs, borrow profiles, rename unsigned output or bypass trust/authorization. Run the combined offline regression first; use a per-command `DEVELOPER_DIR` for Xcode, sign locally in DevEco, select the exact PC target and run the read-only preflight on the actual signed artifact. Default preflight exit0 is report collection only; strict exit2 means missing prerequisites. Even SDK signature verification is not device-profile eligibility or physical input proof. Start with manual-IP M1 and a fallback local keyboard/mouse, then record and commit each genuinely passed milestone.
+The real Xcode27.2 Release project build and signed HarmonyOS debug package are now verified; the confirmed MOR-M1 PC accepted installation. Initial cold-start logs exposed pixelmap and null-UIContent errors; the fix is built/signed/installed, but normal launch is refused while the PC is locked (10106102). Unlock locally; do not bypass the lock or disable developer mode. The Mac host stayed running, with its PID and executable SHA256 unchanged during isolated full regression. Remaining gates are legitimate system grants, mutual code confirmation and the unchecked physical acceptance checklist. Do not send or commit credentials/UDIDs, borrow profiles, rename unsigned output or bypass trust/authorization. Run the combined offline regression first; use a per-command `DEVELOPER_DIR` for Xcode, sign locally in DevEco, select the exact PC target and run the read-only preflight on the actual signed artifact. Default preflight exit0 is report collection only; strict exit2 means missing prerequisites. Even SDK signature verification is not device-profile eligibility or physical input proof. Start with manual-IP M1 and a fallback local keyboard/mouse, then record and commit each genuinely passed milestone.

@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-11-08T18:02:13.350816+08:00",
+  "timestamp": "2026-11-08T20:13:33.949150+08:00",
   "scope": "Read-only source/tool/device prerequisite audit; report/private verifier outputs only",
   "deviceInstalled": false,
   "runtimeInputVerified": false,
@@ -46,18 +46,18 @@
     "exists": true,
     "bundleMatches": true,
     "minimumApiMatches": true,
-    "bytes": 1674455,
-    "sha256": "58f8f10b6932b51903ceb9da1fe06f48059e779e46147430675a3b4550c2e225",
+    "bytes": 1682940,
+    "sha256": "8ca36342f2f9e2b82c063dc0f30a74191fcd27d59a8d72a1c0769987f860aa15",
     "signature": {
       "status": "verified_by_sdk_tool",
       "exitCode": 0,
       "diagnostic": "SDK verifier succeeded; device/profile eligibility still manual",
-      "privateLog": "artifacts/private/preflight/723bf5d286894b0eae200f600662c3e4/verification.log"
+      "privateLog": "artifacts/private/preflight/051bad57ecdb4cd19dd9c81669ff7e80/verification.log"
     }
   },
   "device": {
     "queried": true,
-    "targetCount": 3,
+    "targetCount": 2,
     "eligiblePc": true,
     "selectedTarget": "192.168.31.140:44491",
     "facts": {

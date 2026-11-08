@@ -174,6 +174,16 @@ python3 tools/verify.py          # 统一回归，写critique/build-test.json与
 - 查实际HMS SDK声明确认addToStatusBar同步重载返回void，现有调用没有误漏await，不制造未经证实的修复。设备 `bgtaskmgr -h` 正文为not found，尽管hdc表面exit0，仍判未知；`aa dump -e dev.hop.input/entry/HopStatusBarAbility` 仅查询自有扩展并返回无记录，不据此推断图标/后台任务不存在。没有采集全局任务、窗口或其他应用数据，也没有API红线证据。
 - 新增[首轮鼠标操作卡](<docs/M1_RUN.md>)，写明准确英文按钮、通知/注入授权、Mac隐私设置、本人双方核码及最小穿越/返回动作。当前缺少实际UI和物理操作观察，不把未知状态标成blocked或M1通过；goal继续active，后续需从操作者的界面/鼠标结果推进，而不是重复假注入测试充数。
 
+### 第4轮续：用户报告顶栏/面板异常后的真实诊断（2026-11-08 19:51–20:13 +08:00）
+
+- 用户反馈“鸿蒙找不到H图标，或点不开面板”。重新核实Mac原PID77378仍LISTEN且没有产品TCP会话；MOR-M1/2in1端点仍在线，但旧接收端PID已不在。正常启动一次自己的EntryAbility，得到新PID53122；只采集该PID启动错误，未抓全局窗口/输入/其他应用数据。
+- [冷启动证据](<critique/receiver-relaunch.json>)明确显示StatusbarManager像素图尺寸错误、Ans `null uiContent` 及Hop启动失败。实际SDK要求requestEnableNotification必须在UIContent加载后调用；本工程故意没有主窗口内容，旧调用不满足前提，不能用创建主窗口或伪装context解决。
+- 修复[EntryAbility](<apps/harmonyos/entry/src/main/ets/entryability/EntryAbility.ets>)：图标24vp按真实display density转像素；用公开callback重载包装Promise，验证注册而非盲认为void调用成功；去掉空主Ability通知弹窗请求，仍由合法TASK_KEEPING产生系统持续任务通知，失败禁连。通过API20 getAllContinuousTasks核对自有活动任务/通知ID，不dump全局任务。增加具体失败阶段/错误码；moveAbilityToBackground失败也必须释放starting锁，用户正常重新激活可重试而不重复注册图标。未动Mac产品、输入授权或配对确认。
+- 鸿蒙独立verify通过：原生假SDK354项、实际ArkTS/原生/HAP构建、官方验签均exit0；signed包1682940字节，SHA256 `8ca36342f2f9e2b82c063dc0f30a74191fcd27d59a8d72a1c0769987f860aa15`，包名dev.hop.input，实际最低60000020→API20。PC真实安装成功；正常启动却被**锁屏10106102**拒绝，hdc外层仍exit0，按正文判失败。之后一次正常重试仍锁屏、无PID；[部署记录](<critique/receiver-startup-fix.json>)明确appStarted/tray/task/runtimeFix均false，不能称图标已修好。已提醒本人解锁，不执行CLI错误建议的关闭开发者模式，也不绕过锁屏/输入授权。
+- 在等待本人解锁时补齐完整回归而不打扰Mac：原脚本已支持HOP_BUILD_DIR，修复总验证器必须哈希该实际输出而非旧默认ZIP，并拒绝已变更HAP沿用旧SDK验签标签；新增6项合成元数据回归，明确不是验签/真机测试。隔离目录执行总入口含native-ui，**12条命令全部exit0，100项Python、644项Swift、354项C++、8 TCP、2跨原生回环、284离屏AppKit检查通过**。Mac原PID/角色/启动状态和可执行文件SHA256前后不变，见[保留运行实例证据](<critique/mac-live-preservation.json>)；新包路径按实际隔离目录记录，HAP摘要不变。
+- 20:13对当前8ca产物重新执行严格只读预检exit0、SDK红线false、min20/签名通过、目标仍MOR-M1/2in1/API26；随后三条实际产物SHA256校验全OK。该预检不查询锁屏/授权，不得用前置条件passing覆盖正常启动锁屏失败。
+- 更新SDK审计、首次操作卡、安装/恢复说明和中英README，清除残留“本机没有完整Xcode”的旧句。真实新顶栏/持续任务通知与输入验收仍待解锁后观察，清单不勾选。锁屏是在本轮新确认的安全前提，不伪造成功或把两次同轮重试当作三轮阻塞。
+
 ## 已知待实测项
 
 Mac实际权限/Keychain/图形形态/物理捕获、Intel/macOS14运行、鸿蒙注入授权与撤销、真实移动/拖拽/全键位、左右边缘穿越、顶栏通知与长时保活、急停/断线/崩溃/SIGKILL恢复。退出/权限或tap丢失时不能保证继续过滤已在远端按住的物理尾部，CapsLock全局锁存与系统保留输入也须实测，不能靠假事件单测保证。

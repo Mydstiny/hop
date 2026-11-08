@@ -15,8 +15,14 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def package_records():
     records = []
+    # Build/package scripts already honor HOP_BUILD_DIR. Hash that exact archive,
+    # not a stale default archive when the running product is being preserved.
+    mac_output = Path(os.environ.get('HOP_BUILD_DIR') or str(ROOT / 'apps/macos/build'))
+    if not mac_output.is_absolute():
+        mac_output = ROOT / mac_output
+    mac_archive = os.path.relpath(mac_output / 'Hop-macos-universal-adhoc.zip', ROOT)
     for path, signing in (
-        ('apps/macos/build/Hop-macos-universal-adhoc.zip', 'ad-hoc; not notarized'),
+        (mac_archive, 'ad-hoc; not notarized'),
         ('apps/harmonyos/entry/build/default/outputs/default/entry-default-unsigned.hap', 'unsigned; requires app/device-specific debug signing'),
     ):
         file = ROOT / path
@@ -28,9 +34,12 @@ def package_records():
         if data.get('build.passing') and data.get('signature', {}).get('status') == 'verified_by_sdk_tool':
             signed = ROOT / 'apps/harmonyos' / data['artifact']['path']
             payload = signed.read_bytes()
+            digest = hashlib.sha256(payload).hexdigest()
+            if digest != data['artifact'].get('sha256'):
+                raise ValueError('Signed HAP changed since SDK verification; refusing verified signing label')
             records.append({'path': str(signed.relative_to(ROOT)), 'bytes': len(payload),
-                            'sha256': hashlib.sha256(payload).hexdigest(),
-                            'signing': 'SDK-verified signed debug HAP; target-device eligibility not yet verified'})
+                            'sha256': digest,
+                            'signing': 'SDK-verified signed debug HAP; device eligibility not verified by this offline command'})
     checksum = ROOT / 'artifacts/SHA256SUMS'
     checksum.parent.mkdir(exist_ok=True)
     checksum.write_text(''.join(f"{record['sha256']}  {record['path']}\n" for record in records))
@@ -48,6 +57,7 @@ def main(argv=None):
         ('tests', [sys.executable, 'tools/check_xcode_project.py'], ROOT),
         ('tests', [sys.executable, 'tools/test_xcode_project.py'], ROOT),
         ('tests', [sys.executable, 'tools/test_resolve_xcode.py'], ROOT),
+        ('tests', [sys.executable, 'tools/test_verify.py'], ROOT),
         ('tests', [sys.executable, 'tools/test_device_preflight.py'], ROOT),
         ('tests', [sys.executable, '-m', 'unittest', 'discover', '-s', 'tools/mock-peer', '-v'], ROOT),
         ('build_tests', ['bash', 'apps/macos/scripts/verify.sh'], ROOT),
@@ -127,7 +137,7 @@ def main(argv=None):
     if not report['failures']:
         try:
             report['artifacts'] = package_records()
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
             report['build'] = 'failing'
             report['failures'].append({'kind': 'package', 'message': f'Artifact metadata failed: {exc}'})
     report['durationMs'] = round((time.monotonic() - started) * 1000)

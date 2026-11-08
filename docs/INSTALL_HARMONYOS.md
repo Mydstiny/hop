@@ -83,7 +83,7 @@ UDID属于设备标识，只用于签发你自己的调试profile，不要公开
 4. 重新Build Hap(s)/assembleHap，检查日志不再有 `No signingConfig found`，输出出现实际 `entry-default-signed.hap`（以IDE输出为准）。用IDE签名验证工具验证签名、包名、设备UDID和有效期。
 5. 私钥、密码、p12、p7b、keystore不要提交git或分享。不要复制其他项目的profile，也不要自造一个不能通过设备信任校验的“签名”来冒充可安装包。
 
-**本机用户现已提供签名配置，default产品已绑定，实际signed HAP经SDK官方验签exit0。** 包名保持dev.hop.input，实际产物最低API20；证书/profile/密码留在用户本机，不提交仓库。PC重连后已确认MOR-M1/2in1/API26，系统实际安装返回 `install bundle successfully`，EntryAbility启动成功并有进程存活。SDK验签/安装通过仍不能代替系统注入授权、物理输入与后台验收；其他开发者需配置自己的合法材料，不能借用本机材料。证书/profile有效期以实际签发内容为准；到期后用原固定包名重新签发并重签，不承诺固定14天/180天。
+**本机用户现已提供签名配置，default产品已绑定，实际signed HAP经SDK官方验签exit0。** 包名保持dev.hop.input，实际产物最低API20；证书/profile/密码留在用户本机，不提交仓库。PC重连后已确认MOR-M1/2in1/API26，系统实际安装返回 `install bundle successfully`，初版EntryAbility曾启动且18:28进程存活；随后用户报告顶栏/面板异常，19:52冷启动捕获图标尺寸错误和通知 `null uiContent`。修复版已安装，但其正常启动因PC锁屏10106102被拒绝，尚未验证新版顶栏/任务。必须本人解锁后再正常启动，不能照CLI错误正文的建议关闭开发者模式或尝试绕过锁屏，见[当前部署记录](<../critique/receiver-startup-fix.json>)。SDK验签/安装通过仍不能代替系统注入授权、物理输入与后台验收；其他开发者需配置自己的合法材料，不能借用本机材料。证书/profile有效期以实际签发内容为准；到期后用原固定包名重新签发并重签，不承诺固定14天/180天。
 
 ### 签名 / 设备只读预检
 
@@ -117,7 +117,7 @@ HDC=/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/
 
 首次启动不应显示常驻主窗口，只应出现顶部状态栏Hop图标。点图标打开小面板：
 
-1. 允许系统通知，确认合法TASK_KEEPING长时任务与常驻通知成功；保活失败时连接禁用并显示原因，不伪装成音频/下载。
+1. 先本人解锁PC并保持亮屏。启动时由合法TASK_KEEPING API生成其系统持续任务通知；不从空UIAbility调用要求已加载UIContent的通知授权弹窗。确认实际通知和自有活动任务成功；9800006等通知/保活失败时连接禁用并显示具体阶段/错误码，按系统设置处理Hop通知许可后再正常重启，不伪装成音频/下载，也不绕过系统拒绝。
 2. 点Authorize请求系统输入注入许可；只有系统回调授权且查询结果AUTHORIZED才连接/注入。被拒绝时不要无限重复弹窗。
 3. 列表选择Mac，或在开发手填IP入口输入可信LAN地址；Mac先打开配对窗口。
 4. 核对同一六位码，两边确认；token落盘Preferences后才确认提交。关闭面板仍应保持连接和常驻通知。
@@ -131,4 +131,4 @@ HDC=/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/
 
 ## English summary
 
-Use the HarmonyOS SDK including HMS desktop extensions, minimumAPI20. Unsigned output proves compilation/packaging only. This user's local config now also emits a signed debug HAP with official SDK verification exit0, dev.hop.input and minimumAPI20; the confirmed MOR-M1/2in1/API26 PC accepted installation and EntryAbility start, but actual input authorization, GUI/background behavior and physical input remain unverified. Enable developer mode and authorize debugging on your own PC/2-in-1. Sign with **your own valid debug certificate and an app/device-specific profile for `dev.hop.input` and the target UDID**, ideally using DevEco's automatic signing. Verify credentials/expiry and install the actual signed output with `hdc -t TARGET install -r SIGNED_HAP`, then start EntryAbility. Never rename unsigned output, borrow another app's profile or bypass signature/input authorization. Consent to notifications and system injection from the statusbar workflow; confirm the matching pairing code on both devices. Native fake-SDK tests are not real injection/tray/background acceptance. Follow the separate unchecked two-device checklist before daily use.
+Use the HarmonyOS SDK including HMS desktop extensions, minimumAPI20. Unsigned output proves compilation/packaging only. This user's local config now also emits a signed debug HAP with official SDK verification exit0, dev.hop.input and minimumAPI20; the confirmed MOR-M1/2in1/API26 PC accepted installation. The initial version exposed pixelmap and null-UIContent startup errors; the fixed package is installed, but its launch is now refused while the PC is locked (10106102). Unlock normally as the operator; do not disable developer mode or bypass the lock. Actual input authorization, fixed GUI/background behavior and physical input remain unverified. Enable developer mode and authorize debugging on your own PC/2-in-1. Sign with **your own valid debug certificate and an app/device-specific profile for `dev.hop.input` and the target UDID**, ideally using DevEco's automatic signing. Verify credentials/expiry and install the actual signed output with `hdc -t TARGET install -r SIGNED_HAP`, then start EntryAbility. Never rename unsigned output, borrow another app's profile or bypass signature/input authorization. Consent to notifications and system injection from the statusbar workflow; confirm the matching pairing code on both devices. Native fake-SDK tests are not real injection/tray/background acceptance. Follow the separate unchecked two-device checklist before daily use.

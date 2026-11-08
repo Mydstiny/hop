@@ -1,0 +1,123 @@
+{
+  "timestamp": "2026-11-08T20:01:04.758846+08:00",
+  "scope": "Actual receiver startup fix deployment; no active peer before replacement; no input authorization/pairing/capture",
+  "artifactSha256": "8ca36342f2f9e2b82c063dc0f30a74191fcd27d59a8d72a1c0769987f860aa15",
+  "minimumApi": 20,
+  "sdkSignatureVerified": true,
+  "deviceInstalled": true,
+  "appStarted": false,
+  "deviceLocked": true,
+  "startErrorCode": 10106102,
+  "startOutcomeFromBody": "OS refused launch while locked, despite hdc exit0; operator unlock required",
+  "trayRegistrationVerified": false,
+  "continuousTaskVerified": false,
+  "runtimeFixValidated": false,
+  "records": [
+    {
+      "command": [
+        "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+        "-t",
+        "192.168.31.140:44491",
+        "shell",
+        "param",
+        "get",
+        "const.product.model"
+      ],
+      "exitCode": 0,
+      "output": "MOR-M1 \n"
+    },
+    {
+      "command": [
+        "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+        "-t",
+        "192.168.31.140:44491",
+        "shell",
+        "param",
+        "get",
+        "const.product.devicetype"
+      ],
+      "exitCode": 0,
+      "output": "2in1 \n"
+    },
+    {
+      "command": [
+        "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+        "-t",
+        "192.168.31.140:44491",
+        "install",
+        "-r",
+        "/Users/mydestiny/Developer/mouse_transfer/apps/harmonyos/entry/build/default/outputs/default/entry-default-signed.hap"
+      ],
+      "exitCode": 0,
+      "output": "[Info]App install path:/Users/mydestiny/Developer/mouse_transfer/apps/harmonyos/entry/build/default/outputs/default/entry-default-signed.hap msg:install bundle successfully. \nAppMod finish\n"
+    },
+    {
+      "command": [
+        "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+        "-t",
+        "192.168.31.140:44491",
+        "shell",
+        "aa",
+        "start",
+        "-a",
+        "EntryAbility",
+        "-b",
+        "dev.hop.input",
+        "-m",
+        "entry"
+      ],
+      "exitCode": 0,
+      "output": "error: failed to start ability.\nError Code:10106102  Error Message:The device screen is locked during the application launch, unlock screen failed.\nError cause: The current mode is developer mode, and the screen cannot be unlocked automatically\n  Try the following:\n  > Check in the settings whether the current device is in developer mode, and turn off developer mode\n\n"
+    },
+    {
+      "command": [
+        "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+        "-t",
+        "192.168.31.140:44491",
+        "shell",
+        "pidof",
+        "dev.hop.input"
+      ],
+      "exitCode": 0,
+      "output": ""
+    }
+  ],
+  "receiverPids": [],
+  "runtimeInputVerified": false,
+  "hostRebuiltOrRestarted": false,
+  "subsequentNormalLaunch": {
+    "timestamp": "2026-11-08T20:08:20.969369+08:00",
+    "records": [
+      {
+        "command": [
+          "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+          "-t",
+          "192.168.31.140:44491",
+          "shell",
+          "aa",
+          "start",
+          "-a",
+          "EntryAbility",
+          "-b",
+          "dev.hop.input",
+          "-m",
+          "entry"
+        ],
+        "exitCode": 0,
+        "output": "error: failed to start ability.\nError Code:10106102  Error Message:The device screen is locked during the application launch, unlock screen failed.\nError cause: The current mode is developer mode, and the screen cannot be unlocked automatically\n  Try the following:\n  > Check in the settings whether the current device is in developer mode, and turn off developer mode\n\n"
+      },
+      {
+        "command": [
+          "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+          "-t",
+          "192.168.31.140:44491",
+          "shell",
+          "pidof",
+          "dev.hop.input"
+        ],
+        "exitCode": 0,
+        "output": ""
+      }
+    ]
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "timestamp": "2026-11-08T20:07:43.025115+08:00",
+  "scope": "Full offline regression with isolated Mac output; no product launch/restart, no input or consent operation",
+  "isolatedMacBuildDirectory": "/Users/mydestiny/Developer/mouse_transfer/artifacts/test-build/live-safe-macos",
+  "productExecutableSha256Before": "d5080b06c0c9a5218f17018939bcba3633e8512e05fe42ad93223c563f2d41d0",
+  "productExecutableSha256After": "d5080b06c0c9a5218f17018939bcba3633e8512e05fe42ad93223c563f2d41d0",
+  "executableBytesUnchanged": true,
+  "before": {
+    "accessoryPolicyVerified": true,
+    "bundleIdentifier": "local.hop.macos",
+    "bundlePath": "/Users/mydestiny/Developer/mouse_transfer/apps/macos/build/Hop.app",
+    "captureEnableAttempted": false,
+    "mainWindowAbsenceVerified": false,
+    "pairConfirmationAttempted": false,
+    "permissionGrantAttempted": false,
+    "permissionQueryAttempted": false,
+    "processes": [
+      {
+        "accessory": true,
+        "activationPolicy": 1,
+        "finishedLaunching": true,
+        "pid": 77378
+      }
+    ],
+    "productLaunchedByProbe": false,
+    "running": true,
+    "runtimeInputVerified": false,
+    "scope": "Only expected bundle path and public NSRunningApplication metadata; not window/input proof"
+  },
+  "after": {
+    "accessoryPolicyVerified": true,
+    "bundleIdentifier": "local.hop.macos",
+    "bundlePath": "/Users/mydestiny/Developer/mouse_transfer/apps/macos/build/Hop.app",
+    "captureEnableAttempted": false,
+    "mainWindowAbsenceVerified": false,
+    "pairConfirmationAttempted": false,
+    "permissionGrantAttempted": false,
+    "permissionQueryAttempted": false,
+    "processes": [
+      {
+        "accessory": true,
+        "activationPolicy": 1,
+        "finishedLaunching": true,
+        "pid": 77378
+      }
+    ],
+    "productLaunchedByProbe": false,
+    "running": true,
+    "runtimeInputVerified": false,
+    "scope": "Only expected bundle path and public NSRunningApplication metadata; not window/input proof"
+  },
+  "originalPidsUnchanged": true,
+  "regressionExitCode": 0,
+  "runtimeInputVerified": false
+}

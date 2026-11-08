@@ -15,11 +15,13 @@ This repository contains native applications and test tooling. A passing build, 
 ### Verified in this run
 
 - Native universal Mac build and actual Xcode27.2 Release project build both passed: arm64 + x86_64, minimum14.0, LSUIElement=true; not GUI/input acceptance.
-- DevEco native/ArkTS/HAP packaging passed. The user's local signing config now produces an **SDK-verified signed debug HAP**, dev.hop.input/minimumAPI20; now installed and started on MOR-M1 PC, but not input/runtime-accepted. Unsigned output is retained separately.
+- DevEco native/ArkTS/HAP packaging passed. The user's local signing config now produces an **SDK-verified signed debug HAP**, dev.hop.input/minimumAPI20; the startup-fix package is installed on MOR-M1, but its latest launch was refused because the PC is locked (10106102). The fix is not runtime-validated yet. Unsigned output is retained separately.
 - 40 protocol Python tests,644 Swift checks plus8 TCP scenarios,354 C++ checks, and two actual Swift↔C++ left/right input/return scenarios passed (recording fake SDK only).
 - The static Xcode checker resolves40 objects/53 links, all10 Swift sources and resource/scheme wiring;17 positive/negative checks passed. This is not an xcodebuild run.
 - The production AppKit content view passed284 offscreen layout/action checks with a memory-only model and five fixture PNGs. No visible window, capture/controller instance, real permission query or product app launch; not actual menu-bar/device acceptance.
 - Physical input, tray/background behavior and two-device runtime remain unverified. Strict M0–M4 gates are not all marked complete.
+
+The latest complete12-command regression passed100 Python tests plus the native/loopback/offscreen checks above. `HOP_BUILD_DIR="$PWD/artifacts/test-build/live-safe-macos" python3 -B tools/verify.py --include-native-ui` rebuilds to an isolated directory; the original live Mac PID and executable SHA256 stayed unchanged ([preservation evidence](<critique/mac-live-preservation.json>)). Package metadata hashes the actual overridden archive, not a stale default, and rejects a signed HAP changed since SDK verification.
 
 Run `python3 tools/verify.py` for the combined regression, or explicitly add `--include-native-ui` on a Mac with a WindowServer session for the offscreen AppKit harness. This creates a test NSApplication but no visible window or product services; its images contain fake data, not device screenshots. See the [machine-readable report](<critique/build-test.json>), [milestone evidence](<PLAN.md>) and [shortest path to real-device acceptance](<docs/RESUME.md>).
 
@@ -79,7 +81,7 @@ bash apps/macos/scripts/package.sh
 bash apps/macos/scripts/xcode-build.sh
 ```
 
-The CLT build compiles the actual native production sources for both architectures, targeting14.0. The real Xcode project is included, but a native CLT success is not an actual xcodebuild success. The development host currently lacks complete Xcode.
+The CLT build compiles the actual native production sources for both architectures, targeting14.0. The real Xcode project is included, but a native CLT success is not an actual xcodebuild success. The development host now has Xcode27.2 and its actual Release project build passed.
 
 Output: `apps/macos/build/Hop.app` and universal application archive. The current package is **ad-hoc signed and not notarized**, not a Developer ID release. See [installation, permissions and signing](<docs/INSTALL_MAC.md>) and [implementation/build evidence](<apps/macos/IMPLEMENTATION.md>).
 
