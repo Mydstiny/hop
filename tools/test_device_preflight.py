@@ -50,6 +50,7 @@ class PreflightTests(unittest.TestCase):
         sdk.update(desktopKitPresent=True, arm64InputLibraryPresent=True)
         replacements = {
             'audit_sdk': Mock(return_value=sdk),
+            'find_xcode': Mock(return_value={'developerDirectory': '/fixture/Xcode.app/Contents/Developer', 'source': 'memory fixture'}),
             'run': Mock(return_value={'exitCode': xcode_exit, 'output': 'tool metadata'}),
             'audit_configuration': Mock(return_value={'selectedConfigPresent': configured}),
             'audit_hap_identity': Mock(return_value={'exists': True, 'bundleMatches': True, 'minimumApiMatches': True}),
@@ -221,6 +222,13 @@ class PreflightTests(unittest.TestCase):
         self.assertFalse(result['runtimeInputVerified'])
         self.assertFalse(result['deviceInstalled'])
         self.assertTrue(result['manualStillRequired'])
+        self.assertFalse(result['mac']['projectBuildExecuted'])
+
+    def test_discovered_xcode_is_scoped_without_changing_global_selection(self):
+        result = self.assembled()
+        self.assertEqual(result['mac']['resolvedDeveloperDirectory'], '/fixture/Xcode.app/Contents/Developer')
+        self.assertFalse(result['mac']['globalSelectionChanged'])
+        self.assertTrue(result['mac']['completeXcodeAvailable'])
         self.assertFalse(result['mac']['projectBuildExecuted'])
 
     def test_each_major_prerequisite_fails_closed(self):

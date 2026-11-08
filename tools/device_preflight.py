@@ -11,7 +11,9 @@ import argparse
 import datetime
 import hashlib
 import json
+import os
 import re
+from resolve_xcode import find_xcode
 import subprocess
 import uuid
 import zipfile
@@ -190,10 +192,17 @@ def audit(root, deveco, hap, target=None, skip_device=False):
         report['blockingConditions'] = ['sdk_input_api_redline']
         return report  # no signing tool, Xcode, hdc, app launch, or device call after a real redline
     selected = run(['xcode-select', '-p'])
-    xcode = run(['xcodebuild', '-version'])
-    report['mac'] = {'activeDeveloperDirectory': selected['output'].strip(),
+    active = selected['output'].strip() if selected['exitCode'] == 0 else None
+    discovery = find_xcode(os.environ.get('DEVELOPER_DIR'), active)
+    developer = discovery['developerDirectory']
+    version_command = ['env', f'DEVELOPER_DIR={developer}', 'xcodebuild', '-version'] if developer else ['xcodebuild', '-version']
+    xcode = run(version_command)
+    setup = run(['env', f'DEVELOPER_DIR={developer}', 'xcodebuild', '-checkFirstLaunchStatus']) if developer and xcode['exitCode'] == 0 else None
+    report['mac'] = {'activeDeveloperDirectory': active, 'resolvedDeveloperDirectory': developer,
+                     'discovery': discovery, 'globalSelectionChanged': False,
                      'xcodebuildVersionExitCode': xcode['exitCode'],
-                     'completeXcodeAvailable': xcode['exitCode'] == 0,
+                     'xcodeFirstLaunchExitCode': setup['exitCode'] if setup else None,
+                     'completeXcodeAvailable': developer is not None and xcode['exitCode'] == 0 and setup is not None and setup['exitCode'] == 0,
                      'projectBuildExecuted': False}
     report['configuration'] = audit_configuration(root, deveco)
     report['hap'] = audit_hap_identity(hap)

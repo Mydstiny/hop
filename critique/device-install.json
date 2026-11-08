@@ -1,0 +1,30 @@
+{
+  "timestamp": "2026-11-08T18:03:44.206063+08:00",
+  "bundleName": "dev.hop.input",
+  "target": "192.168.31.140:44491",
+  "targetFacts": "MOR-M1 / 2in1 / API26; independently reverified before this command",
+  "artifactSha256": "58f8f10b6932b51903ceb9da1fe06f48059e779e46147430675a3b4550c2e225",
+  "installExitCode": 0,
+  "installOutput": "[Info]App install path:/Users/mydestiny/Developer/mouse_transfer/apps/harmonyos/entry/build/default/outputs/default/entry-default-signed.hap msg:install bundle successfully. \nAppMod finish\n",
+  "appStarted": true,
+  "runtimeInputVerified": false,
+  "abilityStartExitCode": 0,
+  "abilityStartOutput": "start ability successfully.\n",
+  "appStartRequested": true,
+  "permissionGrantAttempted": false,
+  "updatedAt": "2026-11-08T18:05:06.511137+08:00",
+  "receiverPids": [
+    46919
+  ],
+  "deviceInstalled": true,
+  "processVerifiedAt": "2026-11-08T18:09:48.472979+08:00",
+  "macHost": {
+    "ownedProcessPids": [
+      77378
+    ],
+    "productPath": "apps/macos/build/Hop.app",
+    "sharingEnabledByAgent": false,
+    "inputCaptureTested": false
+  },
+  "pairConfirmationAttempted": false
+}

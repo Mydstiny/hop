@@ -1,15 +1,11 @@
 {
-  "timestamp": "2026-11-08T16:00:18.416760+08:00",
+  "timestamp": "2026-11-08T18:02:13.350816+08:00",
   "scope": "Read-only source/tool/device prerequisite audit; report/private verifier outputs only",
   "deviceInstalled": false,
   "runtimeInputVerified": false,
   "redlineHit": false,
-  "automatedPrerequisitesSatisfied": false,
-  "blockingConditions": [
-    "complete_xcode_unavailable",
-    "harmony_signing_configuration_absent_or_unparsed",
-    "hap_signature_not_verified"
-  ],
+  "automatedPrerequisitesSatisfied": true,
+  "blockingConditions": [],
   "manualStillRequired": [
     "valid app/device debug-profile eligibility and legal system grants",
     "real Xcode project build",
@@ -26,15 +22,23 @@
     "headerSha256": "66ddcc53070cdf43b9b8fedda3cdc6a788ae8517e90dfc6b22eeff26d67033c7"
   },
   "mac": {
-    "activeDeveloperDirectory": "/Library/Developer/CommandLineTools",
-    "xcodebuildVersionExitCode": 1,
-    "completeXcodeAvailable": false,
+    "activeDeveloperDirectory": "/Applications/Xcode.app/Contents/Developer",
+    "resolvedDeveloperDirectory": "/Applications/Xcode.app/Contents/Developer",
+    "discovery": {
+      "developerDirectory": "/Applications/Xcode.app/Contents/Developer",
+      "source": "xcode-select",
+      "reason": "Existing active full Xcode"
+    },
+    "globalSelectionChanged": false,
+    "xcodebuildVersionExitCode": 0,
+    "xcodeFirstLaunchExitCode": 0,
+    "completeXcodeAvailable": true,
     "projectBuildExecuted": false
   },
   "configuration": {
     "parsed": true,
-    "signingConfigCount": 0,
-    "selectedConfigPresent": false,
+    "signingConfigCount": 1,
+    "selectedConfigPresent": true,
     "compatibleSdkVersion": "6.0.0(20)",
     "targetSdkVersion": "26.0.0"
   },
@@ -42,13 +46,13 @@
     "exists": true,
     "bundleMatches": true,
     "minimumApiMatches": true,
-    "bytes": 1608629,
-    "sha256": "97e501108da0f9df20a9d90057113aec769e3f3f109838da6dc62943656d3264",
+    "bytes": 1674455,
+    "sha256": "58f8f10b6932b51903ceb9da1fe06f48059e779e46147430675a3b4550c2e225",
     "signature": {
-      "status": "unsigned",
-      "exitCode": 1,
-      "diagnostic": "No Hap Signing Block before ZIP Central Directory",
-      "privateLog": "artifacts/private/preflight/fa7b7458c63a483395e62f9e45c462ff/verification.log"
+      "status": "verified_by_sdk_tool",
+      "exitCode": 0,
+      "diagnostic": "SDK verifier succeeded; device/profile eligibility still manual",
+      "privateLog": "artifacts/private/preflight/723bf5d286894b0eae200f600662c3e4/verification.log"
     }
   },
   "device": {

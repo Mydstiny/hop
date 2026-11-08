@@ -147,6 +147,25 @@ python3 tools/verify.py          # 统一回归，写critique/build-test.json与
 - 根统一验证加入预检单测，9项命令全部exit0、两项passing信号为true、`failures=[]`。总计82项Python单测（协议40+工程17+预检25）、644 Swift检查、8个TCP场景、354 C++检查、左右2个跨原生输入/返回场景通过。未改变应用功能/范围；Mac仍ad-hoc，鸿蒙仍unsigned。
 - 第1轮已记录的同一外部条件（缺完整Xcode与本工程/目标设备的合法签名）在第2轮连续复核后仍存在。尚未达到完整目标，不标complete；本轮继续保留active，不提前标blocked。最新包校验与构建报告一并保留。
 
+### 自动续推进第3轮与收尾（2026-11-08 16:03–16:15 +08:00）
+
+- 将生产Popover内容拆到小型presentation/action协议边界，正常产品仍读取AppController真实状态；新增真实AppKit内容视图的284项离屏检查和5个内存假数据PNG，不实例化产品网络/存储/捕获控制器，不读取权限、不创建可见窗口。实际菜单栏生命周期/真机输入不在此测试范围。
+- 首次新测exit1：34个“横向越界”来自把NSTextField装饰frame误当Auto Layout alignment rect。读SDK的NSLayoutConstraint契约并检查配对/长文案PNG后，改为同时核对alignment margins与实际frame边界，并新增确实越界的反例；未修改生产布局、未忽略失败。修正后独立和完整回归均284项通过。
+- `python3 tools/verify.py --include-native-ui` 的10项命令exit0；最新结构化报告记录可选UI测试的明确范围，默认不启用并说明跳过原因。新增[恢复指南](<docs/RESUME.md>)；物理验收表仍全部留给真实验收。
+- 第3轮严格只读预检仍exit2：同一缺完整Xcode/本工程合法签名条件连续3轮不变，SDK红线未触发。goal曾按这些必要外部条件标blocked而非complete，导致本轮尚未执行Git提交；后续人类指令恢复后统一收尾，不冒称当时已提交。
+
+### 用户续推：Xcode、合法签名与实际部署（2026-11-08 17:42 起，+08:00）
+
+- 确认鸿蒙bundleName为 `dev.hop.input`。起初仅CLT、磁盘约59GiB、系统/用户Applications及Spotlight无完整Xcode，Downloads无Xcode安装包。网页工具访问Apple官方页面因解析到非公共地址被拒，未绕过抓取限制；使用系统App Store官方Xcode链接的open请求exit0，不冒称这等于下载/安装完成。未读取Apple账户/密码、未调用sudo或全局切换工具命令。
+- 新增[完整Xcode发现工具](<tools/resolve_xcode.py>)及11项文件系统/模拟CLI测试；明确拒绝把CLT冒当完整IDE，保留显式覆盖、空格路径、改名应用、正式版优先和单进程DEVELOPER_DIR。工程构建脚本/只读预检复用该发现逻辑，并检查首次设置，不把版本exit0误当许可/组件就绪。预检单测现为26项。
+- 用户随后提供本机签名材料。脱敏检查发现1份配置，但default产品未绑定，且IDE将compatible SDK抬到26。仅编辑公开产品字段绑定本机default签名并恢复 `6.0.0(20)`，编译target仍26；未展示、复制其他应用材料或提交用户签名配置/密码/证书/profile。构建报告改为从实际module读取包名/最低API，偏离dev.hop.input/API20即失败；配置签名时要求实际signed产物并用官方SDK验证，不按文件名认定有效。
+- 17:54发生真实失败：安装后的全局工具选择已经变为Xcode27.2，首次许可尚未完成，原生C++测试exit69；同期DevEco构建exit0、SignHap成功、官方SDK verify-app exit0，不把测试失败藏成全绿。只为离线子进程使用原CLT（未改全局选择），随后11命令统一回归exit0：94项Python测试（40协议+17工程+26预检+11发现）、644 Swift、8 TCP、354 C++、左右2互通、284 AppKit。原始记录在忽略的日志，最新[根报告](<critique/build-test.json>)只代表该次实际成功。
+- 已请求打开Xcode首次设置，没有替用户接受许可；随后实际 `-checkFirstLaunchStatus` exit0。17:59:59起真实Release `xcodebuild ... ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO build` exit0、BUILD SUCCEEDED；复核产物两种架构、LSUIElement=true、最低14.0。[独立工程构建证据](<critique/xcode-build.json>)区别于离线根入口和静态图检查，不再报告缺完整Xcode。
+- 实际signed HAP为1,674,455字节，SHA256 `58f8f10b6932b51903ceb9da1fe06f48059e779e46147430675a3b4550c2e225`，SDK验签exit0、实际minAPIVersion60000020。旧unsigned仍保留作独立构建产物，不改名充签名包。签名输出/private验证文件不纳入Git。
+- 调试目标一度仅有MLR-AL10/tablet与SGT-AL10/phone，只读确认后未向它们安装。对先前已授权PC的精确旧端点仅作一次重连，最终Connect OK；未扫描/猜新端口、未读取UDID。重验MOR-M1/2in1/API26；18:02严格预检exit0、无blockingConditions、无API红线。预检不执行工程构建/安装，因此这些动作的证据分别记录，自动前置条件通过不等于物理验收。
+- 对同一已验签hash的signed HAP执行该PC的 `hdc install -r`，真实输出 `install bundle successfully`、exit0；随后启动EntryAbility输出 `start ability successfully`，只读确认接收端PID46919。Mac open请求exit0，进程PID77378存活；没有点击授权/配对/共享、没有捕获或注入测试。首次Hilog读取同时使用-x/-z被CLI以CODE -31拒绝（命令表面exit0不作为成功）；按实际帮助修正为仅-x和自有PID/等级过滤，W/E/F当前0行，不据此宣称GUI或后台功能全通过。
+- 原先的缺IDE/签名阻碍现已解除，goal保持active、未标complete。当前两端仅启动；需要合法系统授权与两端核码确认后才能进行真正M1输入验收。任何后续勾选必须对应真实输入/故障证据，不以进程、安装、验签或离屏图替代。
+
 ## 已知待实测项
 
-完整Xcode构建、Mac实际权限/Keychain/图形形态/物理捕获、Intel/macOS14运行、鸿蒙有效调试签名与安装、注入授权与撤销、真实移动/拖拽/全键位、左右边缘穿越、顶栏通知与长时保活、急停/断线/崩溃/SIGKILL恢复。退出/权限或tap丢失时不能保证继续过滤已在远端按住的物理尾部，CapsLock全局锁存与系统保留输入也须实测，不能靠假事件单测保证。
+Mac实际权限/Keychain/图形形态/物理捕获、Intel/macOS14运行、鸿蒙注入授权与撤销、真实移动/拖拽/全键位、左右边缘穿越、顶栏通知与长时保活、急停/断线/崩溃/SIGKILL恢复。退出/权限或tap丢失时不能保证继续过滤已在远端按住的物理尾部，CapsLock全局锁存与系统保留输入也须实测，不能靠假事件单测保证。

@@ -83,7 +83,7 @@ UDID属于设备标识，只用于签发你自己的调试profile，不要公开
 4. 重新Build Hap(s)/assembleHap，检查日志不再有 `No signingConfig found`，输出出现实际 `entry-default-signed.hap`（以IDE输出为准）。用IDE签名验证工具验证签名、包名、设备UDID和有效期。
 5. 私钥、密码、p12、p7b、keystore不要提交git或分享。不要复制其他项目的profile，也不要自造一个不能通过设备信任校验的“签名”来冒充可安装包。
 
-**当前工程没有你的有效调试证书/profile，没有产出可安装的签名HAP。** 这项需要开发者身份与设备授权，不能由未签名构建成功推导。证书/profile有效期以实际签发内容为准；到期后用原固定包名重新签发并重签，不承诺固定14天/180天。
+**本机用户现已提供签名配置，default产品已绑定，实际signed HAP经SDK官方验签exit0。** 包名保持dev.hop.input，实际产物最低API20；证书/profile/密码留在用户本机，不提交仓库。PC重连后已确认MOR-M1/2in1/API26，系统实际安装返回 `install bundle successfully`，EntryAbility启动成功并有进程存活。SDK验签/安装通过仍不能代替系统注入授权、物理输入与后台验收；其他开发者需配置自己的合法材料，不能借用本机材料。证书/profile有效期以实际签发内容为准；到期后用原固定包名重新签发并重签，不承诺固定14天/180天。
 
 ### 签名 / 设备只读预检
 
@@ -101,7 +101,7 @@ python3 tools/device_preflight.py --target YOUR_DEVICE_TARGET \
 - 报告为 [critique/device-preflight.json](<../critique/device-preflight.json>)。验证器按官方CLI要求生成的证书链/profile输出与原始日志只保存在git忽略的 `artifacts/private/preflight/`，预检不读取或输出profile内容、密码或签名私钥。不要公开这些私有输出。
 - SDK验证器exit0也只证明该工具的签名验证成功，仍需人工确认证书信任、profile包名/UDID/有效期及真实系统授权；不能直接宣称可安装。
 
-本次对实际unsigned HAP运行官方验证器，进程exit1，明确报告 **`No Hap Signing Block before ZIP Central Directory`** 与 `Verify Hap failed, signature not found.`，并非只靠文件名判断未签名。工具还发出未在帮助中列出的 `outproof` 警告；预检只使用帮助确认的 `-inFile`、`-outCertChain`、`-outProfile`，不臆造该参数。
+早期对实际unsigned HAP运行官方验证器，进程exit1，明确报告 **`No Hap Signing Block before ZIP Central Directory`** 与 `Verify Hap failed, signature not found.`，并非只靠文件名判断未签名。工具还发出未在帮助中列出的 `outproof` 警告；预检只使用帮助确认的 `-inFile`、`-outCertChain`、`-outProfile`，不臆造该参数。
 
 ## 5. 安装与启动（签名完成后）
 
@@ -131,4 +131,4 @@ HDC=/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/
 
 ## English summary
 
-Use the HarmonyOS SDK including HMS desktop extensions, minimumAPI20. The current unsigned HAP proves compilation/packaging only. Enable developer mode and authorize debugging on your own PC/2-in-1. Sign with **your own valid debug certificate and an app/device-specific profile for `dev.hop.input` and the target UDID**, ideally using DevEco's automatic signing. Verify credentials/expiry and install the actual signed output with `hdc -t TARGET install -r SIGNED_HAP`, then start EntryAbility. Never rename unsigned output, borrow another app's profile or bypass signature/input authorization. Consent to notifications and system injection from the statusbar workflow; confirm the matching pairing code on both devices. Native fake-SDK tests are not real injection/tray/background acceptance. Follow the separate unchecked two-device checklist before daily use.
+Use the HarmonyOS SDK including HMS desktop extensions, minimumAPI20. Unsigned output proves compilation/packaging only. This user's local config now also emits a signed debug HAP with official SDK verification exit0, dev.hop.input and minimumAPI20; the confirmed MOR-M1/2in1/API26 PC accepted installation and EntryAbility start, but actual input authorization, GUI/background behavior and physical input remain unverified. Enable developer mode and authorize debugging on your own PC/2-in-1. Sign with **your own valid debug certificate and an app/device-specific profile for `dev.hop.input` and the target UDID**, ideally using DevEco's automatic signing. Verify credentials/expiry and install the actual signed output with `hdc -t TARGET install -r SIGNED_HAP`, then start EntryAbility. Never rename unsigned output, borrow another app's profile or bypass signature/input authorization. Consent to notifications and system injection from the statusbar workflow; confirm the matching pairing code on both devices. Native fake-SDK tests are not real injection/tray/background acceptance. Follow the separate unchecked two-device checklist before daily use.

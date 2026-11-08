@@ -25,9 +25,10 @@ bash apps/macos/scripts/test.sh        # Offline core/safety tests + localhost t
 bash apps/macos/scripts/verify.sh      # Both commands and machine-readable report/log
 bash apps/macos/scripts/package.sh    # Universal ad-hoc .app zip, not Developer ID/notarized
 bash apps/macos/scripts/xcode-build.sh # Full Xcode route, when Xcode is installed
+bash apps/macos/scripts/ui-test.sh     # Explicit offscreen AppKit view harness; no visible windows
 ```
 
-`HOP_ARCHS='arm64 x86_64'` (default) controls the CLT build. `HOP_BUILD_DIR` can select a different output directory. No script changes global `xcode-select`, grants permissions, starts the graphical app, captures input, or writes a real pairing binding during testing.
+`HOP_ARCHS='arm64 x86_64'` (default) controls the CLT build. `HOP_BUILD_DIR` can select a different output directory. No script changes global `xcode-select`, grants permissions, starts the production graphical app, captures input, or writes a real pairing binding during testing. The explicit optional UI harness creates a test NSApplication and renders production view content offscreen; it creates no visible window and does not instantiate production capture/network/storage controllers.
 
 The Xcode route uses `xcodebuild -project apps/macos/Hop.xcodeproj -scheme Hop -configuration Release -destination 'generic/platform=macOS' ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO build` and a workspace-local DerivedData directory. The CLT route produces an ad-hoc signed bundle at `build/Hop.app`; packaging produces `build/Hop-macos-universal-adhoc.zip`.
 
@@ -48,9 +49,25 @@ The Xcode route uses `xcodebuild -project apps/macos/Hop.xcodeproj -scheme Hop -
 - Follow-up `bash apps/macos/scripts/package.sh` exited0; strict signature verification passed, both `x86_64 arm64` slices were confirmed, and signature remains ad-hoc with no TeamIdentifier. That earlier archive SHA-256 was `5d6bc764eb1843bcb6bc5c350e7d4c2e72644b84b9613448f5b2097ab8ec573d`; it was subsequently repackaged by the parent unified verification, so it is not the current ZIP checksum. No graphical launch, tap creation, physical-state query, permission grant or real Keychain write occurred in these tests.
 - Parent final unified `python3 tools/verify.py` exited0 (2026-11-08 15:41–15:42+08:00), revalidated644 Swift checks/8 TCP scenarios and native production builds, then repackaged. **First-delivery snapshot archive SHA-256: `9aa296f90c9a5b2ff68c4a441498958570afaa94d588431654338e2fcd5b7d22`.** Later unified runs regenerate package checksums automatically in root `artifacts/SHA256SUMS` and `critique/build-test.json` (`artifacts`); use those current records for rebuilt packages. The same unified run also passed40 Python tests,354 fake-SDK C++ checks and direct actual Swift↔actual C++ localhost pairing interop; no physical input was used. See the root PLAN and machine-readable report for the explicit outstanding Xcode/signing/runtime gates.
 
+## Offscreen native content evidence (2026-11-08 16:12–16:13 +08:00)
+
+The production content controller now consumes a small `PopoverModel` presentation/action boundary. Its normal adapter still reads actual AppController/session state and the same permission preflight; only the separate test process supplies memory-only data and actions. No capture/session/network policy changed.
+
+`bash apps/macos/scripts/ui-test.sh` passed **284 native AppKit checks** across unpaired, pairing, locally-confirmed, paired and long bilingual status states: content-derived sizing, visible nonzero geometry, alignment margins/actual-frame bounds, overlap, hidden/enabled controls, six-digit code, delegated enable/direction/pair/confirm/cancel/unpair and zero windows/accessory activation. It never constructs AppController or InputCapture, queries input permissions, starts a listener, touches Keychain, opens Settings or invokes Quit. Its five PNGs are **offscreen fixture renders, not product/device screenshots**; see [pairing content](<build/ui-test/pairing.png>), [long-status content](<build/ui-test/long-status.png>) and [native report](<build/ui-test/report.json>).
+
+The first new geometry test exited1 because it incorrectly equated decorated control frames with Auto Layout alignment rectangles: NSTextField frames extend2pt around their alignment rect. The actual [SDK contract](</Library/Developer/CommandLineTools/SDKs/MacOSX27.0.sdk/System/Library/Frameworks/AppKit.framework/Versions/C/Headers/NSLayoutConstraint.h#L288-L302>) explicitly distinguishes them. After inspecting the renders, the test now verifies alignment margins AND that actual frames stay within the content, with an additional deliberate out-of-bounds negative probe. No layout constraint was relaxed and no failed assertion was ignored. The corrected standalone run and subsequent full regression both exited0.
+
+Root `python3 tools/verify.py --include-native-ui` opts into this harness and validates its structured safety/result fields; the default root run records it as skipped with a reason so existing non-UI test usage stays explicit. Neither path launches the product app or proves actual menu-bar/popover lifecycle, system permission, real input or device behavior.
+
+## Real Xcode project and first startup (2026-11-08 17:59–18:04 +08:00)
+
+Xcode27.2 was installed/selected during user setup. Its initial license state caused an actual native-test exit69; a per-process CLT selection restored the offline suite without altering the global selector or accepting a license. After first-launch status became0, the real Release project command exited0 / BUILD SUCCEEDED, with both arm64+x86_64, LSUIElement=true and minimum14.0 independently checked. See [actual project report](<../../critique/xcode-build.json>); this is separate from the static checker and CLT build.
+
+The Mac product was subsequently opened normally and its process was observed alive (PID77378); receiver installation/start is recorded separately. No grant, pair-confirmation or capture-enable control was clicked by the agent. First startup is not physical input or GUI acceptance.
+
 ## Runtime boundary / required manual acceptance
 
-**The graphical application has NOT been launched. No real keyboard or mouse input has been captured. No real permission grant, Keychain interaction, Bonjour discovery, remote injection, or GUI behavior was verified.** Headless loopback tests use an in-memory pairing binding and explicitly coordinated test-only confirmation; production pairing does NOT auto-confirm. Apple Developer ID certificates, notarization and distributable trust are not claimed.
+**The production application has now been launched, but no actual capture/injection or physical two-device input has been tested. Real permission flows, Keychain pairing round-trip, Bonjour discovery, menu-bar/popover lifecycle and fault/background behavior remain unverified.** Headless loopback tests use an in-memory pairing binding and explicitly coordinated test-only confirmation; production pairing does NOT auto-confirm. Apple Developer ID certificates, notarization and distributable trust are not claimed.
 
 Before coordinated two-device acceptance, explicitly grant permission to run Hop/capture input, keep a physical fallback mouse/keyboard, and test:
 

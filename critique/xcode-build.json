@@ -1,0 +1,17 @@
+{
+  "timestamp": "2026-11-08T17:59:59.826312+08:00",
+  "firstLaunchExitCode": 0,
+  "projectBuildExecuted": true,
+  "projectBuildExitCode": 0,
+  "projectBuild": "passing",
+  "reason": "Actual Xcode Release project command executed; not GUI/input acceptance",
+  "runtimeInputVerified": false,
+  "architectures": [
+    "x86_64",
+    "arm64"
+  ],
+  "minimumSystemVersion": "14.0",
+  "LSUIElement": true,
+  "productMetadataVerifiedAt": "2026-11-08T18:09:48.472979+08:00",
+  "log": "critique/xcode-build.log"
+}

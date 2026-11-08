@@ -14,15 +14,16 @@ This repository contains native applications and test tooling. A passing build, 
 
 ### Verified in this run
 
-- Native universal Mac build passed: arm64 + x86_64, minimum14.0; complete Xcode build remains unverified.
-- DevEco native/ArkTS/HAP packaging passed; output is **unsigned**, not an installed signed release.
+- Native universal Mac build and actual Xcode27.2 Release project build both passed: arm64 + x86_64, minimum14.0, LSUIElement=true; not GUI/input acceptance.
+- DevEco native/ArkTS/HAP packaging passed. The user's local signing config now produces an **SDK-verified signed debug HAP**, dev.hop.input/minimumAPI20; now installed and started on MOR-M1 PC, but not input/runtime-accepted. Unsigned output is retained separately.
 - 40 protocol Python tests,644 Swift checks plus8 TCP scenarios,354 C++ checks, and two actual Swift↔C++ left/right input/return scenarios passed (recording fake SDK only).
 - The static Xcode checker resolves40 objects/53 links, all10 Swift sources and resource/scheme wiring;17 positive/negative checks passed. This is not an xcodebuild run.
+- The production AppKit content view passed284 offscreen layout/action checks with a memory-only model and five fixture PNGs. No visible window, capture/controller instance, real permission query or product app launch; not actual menu-bar/device acceptance.
 - Physical input, tray/background behavior and two-device runtime remain unverified. Strict M0–M4 gates are not all marked complete.
 
-Run `python3 tools/verify.py` for the combined regression. See the [machine-readable report](<critique/build-test.json>) and [milestone evidence](<PLAN.md>).
+Run `python3 tools/verify.py` for the combined regression, or explicitly add `--include-native-ui` on a Mac with a WindowServer session for the offscreen AppKit harness. This creates a test NSApplication but no visible window or product services; its images contain fake data, not device screenshots. See the [machine-readable report](<critique/build-test.json>), [milestone evidence](<PLAN.md>) and [shortest path to real-device acceptance](<docs/RESUME.md>).
 
-Read-only prerequisites: `python3 tools/device_preflight.py --target YOUR_DEVICE_TARGET --require-prerequisites`; see the [current audit](<critique/device-preflight.json>). Its25 safety tests pass, but actual prerequisites do NOT: full Xcode and project signing are absent, and the official SDK verifier confirms no HAP signing block. Default exit0 means report collected only; the strict flag returns2 for missing prerequisites. It never installs/launches apps, requests authorization, reads UDIDs/private keys, or injects input; multiple targets require explicit selection. Verifier outputs stay in git-ignored private artifacts. A valid signature alone still does not prove app/device-profile eligibility or physical runtime acceptance.
+Read-only prerequisites: `python3 tools/device_preflight.py --target YOUR_DEVICE_TARGET --require-prerequisites`; see the [current audit](<critique/device-preflight.json>). Its26 safety tests and11 Xcode-discovery tests pass, and the latest automatic prerequisite audit passes: Xcode27.2 first-launch setup is complete and the original MOR-M1/2in1/API26 PC was reconnected/reverified. The actual Xcode Release project and PC install/start have separate evidence; physical acceptance is still pending. The actual signed HAP now passes official SDK verification; add `--hap apps/harmonyos/entry/build/default/outputs/default/entry-default-signed.hap` to audit it. Default exit0 means report collected only; the strict flag returns2 for missing prerequisites. It never installs/launches apps, requests authorization, reads UDIDs/private keys, or injects input; multiple targets require explicit selection. Verifier outputs stay in git-ignored private artifacts. A valid signature alone still does not prove app/device-profile eligibility or physical runtime acceptance.
 
 ## Security: trusted LAN only
 

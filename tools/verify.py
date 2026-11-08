@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Reproducible native/offline verification. Does NOT launch apps or operate devices."""
+"""Native/offline verification; optional offscreen AppKit harness, never product apps/devices."""
 from pathlib import Path
+import argparse
 import datetime
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import time
@@ -20,19 +22,32 @@ def package_records():
         file = ROOT / path
         data = file.read_bytes()
         records.append({'path': path, 'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest(), 'signing': signing})
+    harmony_report = ROOT / 'apps/harmonyos/tests/.build/hap-build-report.json'
+    if harmony_report.is_file():
+        data = json.loads(harmony_report.read_text())
+        if data.get('build.passing') and data.get('signature', {}).get('status') == 'verified_by_sdk_tool':
+            signed = ROOT / 'apps/harmonyos' / data['artifact']['path']
+            payload = signed.read_bytes()
+            records.append({'path': str(signed.relative_to(ROOT)), 'bytes': len(payload),
+                            'sha256': hashlib.sha256(payload).hexdigest(),
+                            'signing': 'SDK-verified signed debug HAP; target-device eligibility not yet verified'})
     checksum = ROOT / 'artifacts/SHA256SUMS'
     checksum.parent.mkdir(exist_ok=True)
     checksum.write_text(''.join(f"{record['sha256']}  {record['path']}\n" for record in records))
     return records
 
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--include-native-ui', action='store_true', help='Include offscreen production AppKit view tests; no visible window or product app launch')
+    args = parser.parse_args(argv)
     output = ROOT / 'critique'
     output.mkdir(exist_ok=True)
     commands = [
         ('tests', [sys.executable, 'tools/generate_keymap.py', '--check'], ROOT),
         ('tests', [sys.executable, 'tools/check_xcode_project.py'], ROOT),
         ('tests', [sys.executable, 'tools/test_xcode_project.py'], ROOT),
+        ('tests', [sys.executable, 'tools/test_resolve_xcode.py'], ROOT),
         ('tests', [sys.executable, 'tools/test_device_preflight.py'], ROOT),
         ('tests', [sys.executable, '-m', 'unittest', 'discover', '-s', 'tools/mock-peer', '-v'], ROOT),
         ('build_tests', ['bash', 'apps/macos/scripts/verify.sh'], ROOT),
@@ -40,12 +55,18 @@ def main():
         ('tests', [sys.executable, 'tools/test_native_interop.py'], ROOT),
         ('package', ['bash', 'apps/macos/scripts/package.sh'], ROOT),
     ]
+    if args.include_native_ui:
+        commands.insert(-1, ('tests', ['bash', 'apps/macos/scripts/ui-test.sh'], ROOT))
     report = {'build': 'passing', 'tests': 'passing', 'commandsRun': [], 'failures': [],
               'timestamp': datetime.datetime.now().astimezone().isoformat(),
-              'scope': 'Native CLT universal macOS build + DevEco unsigned HarmonyOS HAP + offline/loopback tests only',
-              'xcodeProjectBuild': 'not verified: complete Xcode is not installed',
-              'harmonySigning': 'unsigned: no app/device-specific debug signingConfig',
+              'scope': 'Native CLT universal macOS build + DevEco HAP with per-artifact signing state + offline/loopback/optional offscreen tests; no device operation',
+              'xcodeProjectBuild': 'not run by this offline verifier; use apps/macos/scripts/xcode-build.sh for actual project build',
+              'harmonySigning': 'not inspected until the actual HarmonyOS build report is read',
               'runtimeInputVerified': False, 'deviceInstalled': False}
+    native_env = os.environ.copy()
+    if not native_env.get('DEVELOPER_DIR') and Path('/Library/Developer/CommandLineTools/usr/bin/clang').is_file():
+        native_env['DEVELOPER_DIR'] = '/Library/Developer/CommandLineTools'
+    report['nativeCompilerDeveloperDirectory'] = native_env.get('DEVELOPER_DIR', 'active system selection')
     started = time.monotonic()
     with (output / 'build-test.log').open('w') as log:
         for kind, command, cwd in commands:
@@ -55,7 +76,7 @@ def main():
             log.flush()
             begin = time.monotonic()
             try:
-                result = subprocess.run(command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                result = subprocess.run(command, cwd=cwd, env=native_env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                         text=True, timeout=240)
                 status, text = result.returncode, result.stdout
             except subprocess.TimeoutExpired as exc:
@@ -74,6 +95,32 @@ def main():
                     report['tests'] = 'failing'
                 # Do not package stale binaries or run interop on a failed build.
                 break
+    harmony_run = next((e for e in report['commandsRun'] if e['cwd'] == 'apps/harmonyos'), None)
+    if harmony_run:
+        try:
+            data = json.loads((ROOT / 'apps/harmonyos/tests/.build/hap-build-report.json').read_text())
+            report['harmonySigning'] = data.get('signing', 'unverified')
+            report['harmonyMinimumApi'] = data.get('minimumApi')
+        except (OSError, ValueError):
+            report['harmonySigning'] = 'unverified: no current build report'
+    ui = next((e for e in report['commandsRun'] if e['command'][-1] == 'apps/macos/scripts/ui-test.sh'), None)
+    report['nativeUiTest'] = {'status': ('passing' if ui['exitCode'] == 0 else 'failing') if ui else 'skipped',
+                              'scope': 'Offscreen production AppKit content with a memory model; no menu-bar interaction/input proof',
+                              'reason': 'Explicit opt-in offscreen harness executed' if ui else
+                                        'Earlier validation failed' if args.include_native_ui else
+                                        'Not requested; add --include-native-ui on a Mac with a WindowServer session'}
+    if ui and ui['exitCode'] == 0:
+        try:
+            ui_report = json.loads((ROOT / 'apps/macos/build/ui-test/report.json').read_text())
+            if not ui_report['passing'] or ui_report['visibleWindowsCreated'] or ui_report['runtimeInputVerified']:
+                raise ValueError('Offscreen UI report has inconsistent success/safety fields')
+            report['nativeUiTest']['checks'] = ui_report['checks']
+            report['nativeUiTest']['visibleWindowsCreated'] = ui_report['visibleWindowsCreated']
+            report['nativeUiTest']['productAppLaunched'] = ui_report['productAppLaunched']
+        except (OSError, ValueError, KeyError) as exc:
+            report['tests'] = 'failing'
+            report['nativeUiTest']['status'] = 'failing'
+            report['failures'].append({'kind': 'tests', 'message': f'Native UI report missing or invalid: {exc}'})
     if report['build'] == 'passing' and sum(e['kind'] == 'build_tests' for e in report['commandsRun']) < 2:
         report['build'] = 'failing'
         report['buildReason'] = 'Unverified: a prior validation failed before both native build commands could run.'

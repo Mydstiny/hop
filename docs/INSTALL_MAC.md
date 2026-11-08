@@ -28,7 +28,22 @@ bash apps/macos/scripts/package.sh
 bash apps/macos/scripts/xcode-build.sh
 ```
 
-脚本不更改全局 `xcode-select`。本次开发环境只有CLT，没有完整Xcode，所以真实 `xcodebuild` 仍须补验。若本机装有Xcode，可通过 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` 为单次命令选用，不必更改全局设置。
+脚本不更改全局 `xcode-select`。它现在自动识别已选中的完整Xcode，以及系统/用户Applications目录中已安装的Xcode（含改名或空格路径，优先正式版）；只给当前构建进程设置 `DEVELOPER_DIR`。因此装好Xcode后，即使全局仍指向CLT，也能直接重跑上述命令。显式提供的 `DEVELOPER_DIR` 优先，错误覆盖不会被静默忽略。只读设备预检使用同一发现逻辑。
+
+最初检查时未找到完整Xcode；安装并选中Xcode27.2后曾出现首次许可/组件检查exit69。已请求打开Xcode处理首次设置，没有代替用户同意许可；随后该检查exit0，真实Release工程构建exit0 / BUILD SUCCEEDED，产物复核双架构/最低14.0/LSUIElement=true，见[实际工程报告](<../critique/xcode-build.json>)。发现工具的11项文件系统/模拟测试和 `xcodebuild -version` 成功本身仍不代表工程构建。可单独查看：
+
+```sh
+python3 tools/resolve_xcode.py
+```
+
+### 没有安装Xcode时
+
+1. 从 [Mac App Store官方Xcode入口](<https://apps.apple.com/app/xcode/id497799835>) 获取Xcode，或从Apple自己的开发者下载渠道获取。不要下载第三方“精简/破解Xcode”，不要把CLT目录伪装成完整IDE。
+2. 如系统要求，在App Store自行登录Apple账户；打开安装完成的Xcode，亲自处理首次许可和必要组件设置。本工程只需macOS平台，暂不必安装iOS/watchOS/tvOS/visionOS模拟器。下载与展开需额外临时空间，以系统实际要求为准。
+3. Xcode本身免费；此工程构建使用 `CODE_SIGNING_ALLOWED=NO`，不要求购买Apple开发者会员。后续Developer ID发布签名/公证是独立事项。
+4. 完成后运行上述构建命令。非标准安装位置可用 `DEVELOPER_DIR=/ABSOLUTE/PATH/Xcode.app/Contents/Developer bash apps/macos/scripts/xcode-build.sh`；也接受显式Xcode.app路径。不需要执行全局 `sudo xcode-select --switch`。
+
+Mac原生自用包仍可通过CLT路线构建，不必为使用已有ad-hoc包等待完整Xcode；但CLT通过不替代严格要求的真实工程构建。若安装Xcode后全局切换导致首次许可阻止原生脚本，可只为命令指定 `DEVELOPER_DIR=/Library/Developer/CommandLineTools`；根统一离线验证现在默认这样使用已安装CLT，保留显式覆盖且不改全局设置。完整工程脚本和只读预检另外检查 `-checkFirstLaunchStatus`，不会把版本命令exit0误认为首次设置完成。
 
 只有CLT时可额外运行以下**静态**检查；它不等价于Xcode构建：
 

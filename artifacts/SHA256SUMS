@@ -1,2 +1,3 @@
-81943cb2ef530718487edc03512bffb9cba8a355e264bf154dae41a77060c346  apps/macos/build/Hop-macos-universal-adhoc.zip
-97e501108da0f9df20a9d90057113aec769e3f3f109838da6dc62943656d3264  apps/harmonyos/entry/build/default/outputs/default/entry-default-unsigned.hap
+a061ab46304cb2c816786b52938298e7303db64fc70228b81d345641ede5d7da  apps/macos/build/Hop-macos-universal-adhoc.zip
+17e9f85ce6133ab628dd18c323694ad0e9491442fcca78d60bb80791fb425de6  apps/harmonyos/entry/build/default/outputs/default/entry-default-unsigned.hap
+58f8f10b6932b51903ceb9da1fe06f48059e779e46147430675a3b4550c2e225  apps/harmonyos/entry/build/default/outputs/default/entry-default-signed.hap

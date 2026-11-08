@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Run from apps/harmonyos. Uses the installed tool's configured cache as-is.
-# No signing material, dependency installation, cache relocation or device action.
+# Uses only this project's user-configured signing material; never copies/creates credentials.
+# No dependency installation, cache relocation or device action.
 set -uo pipefail
 if [[ ! -f build-profile.json5 || ! -f scripts/write_build_report.py ]]; then
   printf 'Run this script from apps/harmonyos.\n' >&2

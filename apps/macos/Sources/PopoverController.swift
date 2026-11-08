@@ -1,7 +1,42 @@
 import AppKit
 
+/// Presentation-only boundary: native view tests can supply memory data/actions,
+/// without constructing capture/network/storage controllers or querying permissions.
+struct PopoverPresentation {
+    var status = "Starting local server…"
+    var pairedName: String? = nil
+    var enabled = false
+    var direction: UInt8 = 1
+    var permissionGranted = false
+    var code: UInt32? = nil
+    var peerName = ""
+    var peerConfirmed = false
+    var localConfirmed = false
+    var pairingAllowed = false
+}
+protocol PopoverModel: AnyObject {
+    var popoverPresentation: PopoverPresentation { get }
+    func setEnabled(_ value: Bool)
+    func setDirection(_ direction: UInt8)
+    func beginPairing()
+    func unpair()
+    func confirmPairing()
+    func rejectPairing()
+    func requestPermissions()
+}
+extension AppController: PopoverModel {
+    var popoverPresentation: PopoverPresentation {
+        let candidate = session.challenge
+        return PopoverPresentation(status: stateText, pairedName: session.binding?.name, enabled: enabled,
+                                   direction: session.direction, permissionGranted: InputCapture.permissionGranted,
+                                   code: candidate?.code, peerName: candidate?.hello.name ?? "",
+                                   peerConfirmed: session.peerConfirmed, localConfirmed: session.localConfirmed,
+                                   pairingAllowed: session.pairingAllowed)
+    }
+}
+
 final class PopoverController: NSViewController {
-    private let controller: AppController
+    private let controller: PopoverModel
     private let stack = NSStackView()
     private let state = NSTextField(wrappingLabelWithString: "")
     private let paired = NSTextField(wrappingLabelWithString: "")
@@ -14,7 +49,7 @@ final class PopoverController: NSViewController {
     private let unpair = NSButton(title: "Unpair", target: nil, action: nil)
     private let confirm = NSButton(title: "Codes match — Confirm", target: nil, action: nil)
     private let reject = NSButton(title: "Cancel pairing", target: nil, action: nil)
-    init(controller: AppController) { self.controller = controller; super.init(nibName: nil, bundle: nil) }
+    init(controller: PopoverModel) { self.controller = controller; super.init(nibName: nil, bundle: nil) }
     required init?(coder: NSCoder) { fatalError("Programmatic controller") }
     override func loadView() {
         view = NSView(frame: NSRect(x: 0, y: 0, width: 360, height: 560))
@@ -47,23 +82,23 @@ final class PopoverController: NSViewController {
     }
     func refresh() {
         guard isViewLoaded else { return }
-        state.stringValue = controller.stateText
-        paired.stringValue = controller.session.binding.map { "Paired device: \($0.name)" } ?? "No paired device"
-        enable.state = controller.enabled ? .on : .off
-        direction.selectedSegment = Int(controller.session.direction)
-        permissions.stringValue = InputCapture.permissionGranted ? "Accessibility & Input Monitoring: granted" : "Allow Hop in Privacy & Security → Accessibility and Input Monitoring. Then enable sharing. macOS may require restarting Hop."
-        let candidate = controller.session.challenge
-        code.isHidden = candidate == nil; confirmation.isHidden = candidate == nil; confirm.isHidden = candidate == nil; reject.isHidden = candidate == nil
-        if let candidate {
-            code.stringValue = String(format: "%06u", candidate.code)
-            confirmation.stringValue = "\(candidate.hello.name): verify the same code on BOTH computers.\nOther computer: \(controller.session.peerConfirmed ? "confirmed" : "waiting")"
+        let model = controller.popoverPresentation
+        state.stringValue = model.status
+        paired.stringValue = model.pairedName.map { "Paired device: \($0)" } ?? "No paired device"
+        enable.state = model.enabled ? .on : .off
+        direction.selectedSegment = Int(model.direction)
+        permissions.stringValue = model.permissionGranted ? "Accessibility & Input Monitoring: granted" : "Allow Hop in Privacy & Security → Accessibility and Input Monitoring. Then enable sharing. macOS may require restarting Hop."
+        code.isHidden = model.code == nil; confirmation.isHidden = model.code == nil; confirm.isHidden = model.code == nil; reject.isHidden = model.code == nil
+        if let pairingCode = model.code {
+            code.stringValue = String(format: "%06u", pairingCode)
+            confirmation.stringValue = "\(model.peerName): verify the same code on BOTH computers.\nOther computer: \(model.peerConfirmed ? "confirmed" : "waiting")"
         }
-        confirm.isEnabled = !controller.session.localConfirmed
-        confirm.title = controller.session.localConfirmed ? "Confirmed — waiting for peer" : "Codes match — Confirm"
-        pair.isHidden = controller.session.binding != nil || candidate != nil
-        pair.isEnabled = !controller.session.pairingAllowed
-        pair.title = controller.session.pairingAllowed ? "Waiting for pairing request…" : "Pair a computer…"
-        unpair.isHidden = controller.session.binding == nil
+        confirm.isEnabled = !model.localConfirmed
+        confirm.title = model.localConfirmed ? "Confirmed — waiting for peer" : "Codes match — Confirm"
+        pair.isHidden = model.pairedName != nil || model.code != nil
+        pair.isEnabled = !model.pairingAllowed
+        pair.title = model.pairingAllowed ? "Waiting for pairing request…" : "Pair a computer…"
+        unpair.isHidden = model.pairedName == nil
         view.layoutSubtreeIfNeeded()
         let size = NSSize(width: 360, height: max(360, stack.fittingSize.height + 36))
         preferredContentSize = size
