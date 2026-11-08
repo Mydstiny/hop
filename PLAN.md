@@ -184,6 +184,13 @@ python3 tools/verify.py          # 统一回归，写critique/build-test.json与
 - 20:13对当前8ca产物重新执行严格只读预检exit0、SDK红线false、min20/签名通过、目标仍MOR-M1/2in1/API26；随后三条实际产物SHA256校验全OK。该预检不查询锁屏/授权，不得用前置条件passing覆盖正常启动锁屏失败。
 - 更新SDK审计、首次操作卡、安装/恢复说明和中英README，清除残留“本机没有完整Xcode”的旧句。真实新顶栏/持续任务通知与输入验收仍待解锁后观察，清单不勾选。锁屏是在本轮新确认的安全前提，不伪造成功或把两次同轮重试当作三轮阻塞。
 
+### 第4轮续：本人解锁后的真实启动结果（2026-11-08 21:17 +08:00）
+
+- 操作者明确已解锁并请求继续；再次核对MOR-M1/2in1后正常启动，无重装/重编译。aa正文成功，当前自有接收端PID47722；仅查该PID的Hop标签，不读取输入、截图、全局窗口或其他应用。
+- 实际图标尺寸46px，顶栏注册callback成功；合法TASK_KEEPING请求后公开API查询得到自有活动task55/notification36、mode taskKeeping，见[累计部署证据](<critique/receiver-startup-fix.json>)。这是实际系统结果，不是录制假SDK。
+- 仍有moveAbilityToBackground Operation-not-supported警告；已被finally处理，未锁死startup，也没有创建主窗口兜底。不能从API成功推导图标可见、面板能打开或无主窗口；这些字段继续false，需本人视觉观察。另发现hilog `%{public}f` 未正确打印密度（像素尺寸已正常记录），仅诊断格式问题，不为此打断运行中的产品重部署。
+- 未代按Authorize/核码/开启共享，实际注入与后续M1–M4清单仍未通过。下一步先确认H图标/面板及无主窗口，再本人授权与物理鼠标，不用API回调冒充视觉或输入验收。
+
 ## 已知待实测项
 
 Mac实际权限/Keychain/图形形态/物理捕获、Intel/macOS14运行、鸿蒙注入授权与撤销、真实移动/拖拽/全键位、左右边缘穿越、顶栏通知与长时保活、急停/断线/崩溃/SIGKILL恢复。退出/权限或tap丢失时不能保证继续过滤已在远端按住的物理尾部，CapsLock全局锁存与系统保留输入也须实测，不能靠假事件单测保证。

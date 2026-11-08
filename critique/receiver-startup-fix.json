@@ -5,13 +5,20 @@
   "minimumApi": 20,
   "sdkSignatureVerified": true,
   "deviceInstalled": true,
-  "appStarted": false,
-  "deviceLocked": true,
-  "startErrorCode": 10106102,
-  "startOutcomeFromBody": "OS refused launch while locked, despite hdc exit0; operator unlock required",
-  "trayRegistrationVerified": false,
-  "continuousTaskVerified": false,
+  "appStarted": true,
+  "deviceLocked": false,
+  "startErrorCode": null,
+  "startOutcomeFromBody": "start ability successfully.",
+  "trayRegistrationVerified": true,
+  "continuousTaskVerified": true,
+  "startupApiChecksPassed": true,
   "runtimeFixValidated": false,
+  "trayPopupVisuallyVerified": false,
+  "mainWindowAbsenceVerified": false,
+  "activeOwnTaskId": 55,
+  "activeOwnNotificationId": 36,
+  "uiObservationPending": "Registration callback and own active task query passed; operator has not yet confirmed visible icon/popup/no-main-window",
+  "startupWarnings": ["moveAbilityToBackground returned Operation not supported; startup lock was released", "hilog float density placeholder was not rendered; computed icon side46px was logged"],
   "records": [
     {
       "command": [
@@ -82,7 +89,9 @@
       "output": ""
     }
   ],
-  "receiverPids": [],
+  "receiverPids": [
+    "47722"
+  ],
   "runtimeInputVerified": false,
   "hostRebuiltOrRestarted": false,
   "subsequentNormalLaunch": {
@@ -117,6 +126,83 @@
         ],
         "exitCode": 0,
         "output": ""
+      }
+    ]
+  },
+  "operatorUnlockLaunch": {
+    "timestamp": "2026-11-08T21:17:31.843617+08:00",
+    "records": [
+      {
+        "command": [
+          "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+          "-t",
+          "192.168.31.140:44491",
+          "shell",
+          "param",
+          "get",
+          "const.product.model"
+        ],
+        "exitCode": 0,
+        "output": "MOR-M1 \n"
+      },
+      {
+        "command": [
+          "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+          "-t",
+          "192.168.31.140:44491",
+          "shell",
+          "param",
+          "get",
+          "const.product.devicetype"
+        ],
+        "exitCode": 0,
+        "output": "2in1 \n"
+      },
+      {
+        "command": [
+          "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+          "-t",
+          "192.168.31.140:44491",
+          "shell",
+          "aa",
+          "start",
+          "-a",
+          "EntryAbility",
+          "-b",
+          "dev.hop.input",
+          "-m",
+          "entry"
+        ],
+        "exitCode": 0,
+        "output": "start ability successfully.\n"
+      },
+      {
+        "command": [
+          "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+          "-t",
+          "192.168.31.140:44491",
+          "shell",
+          "pidof",
+          "dev.hop.input"
+        ],
+        "exitCode": 0,
+        "output": "47722\n"
+      },
+      {
+        "command": [
+          "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+          "-t",
+          "192.168.31.140:44491",
+          "shell",
+          "hilog",
+          "-x",
+          "-P",
+          "47722",
+          "-T",
+          "Hop"
+        ],
+        "exitCode": 0,
+        "output": "11-08 21:17:31.737 47722 47722 I A00000/dev.hop.input/Hop: Icon size 46px, display density }f\n11-08 21:17:31.748 47722 47722 I A00000/dev.hop.input/Hop: Icon size 46px, display density }f\n11-08 21:17:31.773 47722 47722 I A00000/dev.hop.input/Hop: [a92ab1766bb92e8 2cd2997 26622df]Statusbar registration callback succeeded\n11-08 21:17:31.785 47722 47722 I A00000/dev.hop.input/Hop: [a92ab1766bb92e8 f102c6 2e66a95]TASK_KEEPING active: task 55, notification 36, modes taskKeeping\n11-08 21:17:31.786 47722 47722 W A00000/dev.hop.input/Hop: [a92ab1766bb92e8 2e6a9d 1bb5d0]Background transition unavailable: Error: Operation not supported.\n"
       }
     ]
   }
