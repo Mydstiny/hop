@@ -18,7 +18,7 @@
 | 项目 | 结果 |
 |---|---|
 | Mac原生通用构建 | CLT脚本与**真实Xcode27.2 Release工程构建均通过**；产物复核arm64 + x86_64、最低14.0、LSUIElement=true |
-| 鸿蒙DevEco构建 | **signed HAP官方SDK验签通过**，dev.hop.input/最低API20；修复版在本人解锁后正常启动，真实顶栏注册回调成功、查到活动taskKeeping任务55/通知36；面板视觉与输入仍待实测 |
+| 鸿蒙DevEco构建 | **signed HAP官方SDK验签通过**，dev.hop.input/最低API20；修复版在本人解锁后正常启动，真实顶栏注册回调成功、查到活动taskKeeping任务55/通知36；本人已确认H图标/面板/无主窗口；实际输入未验 |
 | 离线 / localhost | 协议Python40测试、Swift644检查 + 8个TCP场景、C++354检查；真实Swift↔C++左右2个输入/返回场景通过（仅假注入SDK） |
 | Xcode静态工程检查 | 40对象/53引用、全部10个Swift源文件及资源/scheme一致；17项正反测试通过，不代替xcodebuild |
 | Mac原生面板离屏 | 284项真实AppKit布局/按钮检查、5个状态PNG；仅内存假数据、无可见窗口，不替代产品启动/菜单栏交互验收 |

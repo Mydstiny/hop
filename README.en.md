@@ -15,7 +15,7 @@ This repository contains native applications and test tooling. A passing build, 
 ### Verified in this run
 
 - Native universal Mac build and actual Xcode27.2 Release project build both passed: arm64 + x86_64, minimum14.0, LSUIElement=true; not GUI/input acceptance.
-- DevEco native/ArkTS/HAP packaging passed. The user's local signing config now produces an **SDK-verified signed debug HAP**, dev.hop.input/minimumAPI20; after the operator unlocked MOR-M1, normal startup succeeded, with a real statusbar registration callback and active taskKeeping task55/notification36. Visual popup/no-main-window and input acceptance remain pending. Unsigned output is retained separately.
+- DevEco native/ArkTS/HAP packaging passed. The user's local signing config now produces an **SDK-verified signed debug HAP**, dev.hop.input/minimumAPI20; after the operator unlocked MOR-M1, normal startup succeeded, with a real statusbar registration callback and active taskKeeping task55/notification36. The operator subsequently confirmed the visible H icon, working popup and no main window; physical input remains pending. Unsigned output is retained separately.
 - 40 protocol Python tests,644 Swift checks plus8 TCP scenarios,354 C++ checks, and two actual Swift↔C++ left/right input/return scenarios passed (recording fake SDK only).
 - The static Xcode checker resolves40 objects/53 links, all10 Swift sources and resource/scheme wiring;17 positive/negative checks passed. This is not an xcodebuild run.
 - The production AppKit content view passed284 offscreen layout/action checks with a memory-only model and five fixture PNGs. No visible window, capture/controller instance, real permission query or product app launch; not actual menu-bar/device acceptance.
