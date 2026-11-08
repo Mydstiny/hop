@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Actual Swift server + actual HarmonyOS C++ Client pairing on localhost, no physical input."""
+"""Actual Swift server ↔ actual HarmonyOS C++ Client+Injector, recording fakes on localhost only."""
 from pathlib import Path
 import queue
 import subprocess
@@ -38,7 +38,7 @@ class Process:
             line = self.line(max(.01, deadline - time.monotonic()))
             if line == expected:
                 return
-            if line in ('ERROR', 'FAIL') or time.monotonic() >= deadline:
+            if line.startswith(('ERROR', 'FAIL')) or time.monotonic() >= deadline:
                 raise AssertionError(f'Expected {expected}, got {self.history}')
 
     def command(self, text):
@@ -54,19 +54,10 @@ class Process:
         self.process.stdout.close()
 
 
-def main():
-    if not SERVER.is_file():
-        raise SystemExit('Run bash apps/macos/scripts/test.sh to build the safe headless Swift test server first.')
-    OUT.mkdir(parents=True, exist_ok=True)
-    native = ROOT / 'apps/harmonyos/entry/src/main/cpp'
-    executable = OUT / 'interop-client'
-    subprocess.run(['xcrun', 'clang++', '-std=c++17', '-pthread', '-Wall', '-Wextra',
-                    '-I', str(ROOT / 'apps/harmonyos/tests/fake'), '-I', str(native),
-                    str(ROOT / 'tools/interop_client.cpp'), str(native / 'client.cpp'),
-                    '-o', str(executable)], check=True)
+def scenario(executable, direction):
     server, client = None, None
     try:
-        server = Process([SERVER])
+        server = Process([SERVER, '--direction', direction])
         first = server.line()
         assert first.startswith('LISTEN '), first
         client = Process([executable, first.split()[1]])
@@ -86,19 +77,48 @@ def main():
         client.until('READY')
         server.command('status')
         assert server.line() == 'STATE authenticated bound'
+        server.command('enter')
+        assert server.line() == 'ENTER_SENT'
+        server.until('ENTERED')
+        client.until('REMOTE_HELD')
+        server.command('exercise')
+        assert server.line() == 'EXERCISED'
+        server.command('return')
+        assert server.line() == 'RETURN_SENT'
+        server.until('RETURNED')
+        # The actual Client MUST release before REQUEST_LEAVE/its state event and
+        # then accept actual Swift LEAVE; memory-only assertions inspect fake SDK records.
+        client.until('LEAVING_RELEASED')
+        client.until('LOCAL_RELEASED')
         client.command('quit')
-        client.until('PASS_NO_INPUT')
+        client.until('PASS_RECORDED_INPUT_AND_RELEASE')
         assert client.process.wait(timeout=6) == 0
         server.command('quit')
         assert server.process.wait(timeout=6) == 0
-        print('PASS native interop: actual Swift Network/TCP/pairing + actual HarmonyOS C++ Client')
-        print('PASS native interop: one-sided confirmation cannot persist; mutual consent + commit ACK + READY agree')
-        print('No AppKit app/event tap/physical input/Keychain/Preferences/device injection was used.')
+        layout = 'left' if direction == 0 else 'right'
+        print(f'PASS native interop ({layout}): mutual pairing + commit ACK + ENTER exact ACK + held-state injection')
+        print(f'PASS native interop ({layout}): drag/buttons/2-axis wheel/repeat/modifiers/Caps + return-edge release before LOCAL')
     finally:
         if client:
             client.cleanup()
         if server:
             server.cleanup()
+
+
+def main():
+    if not SERVER.is_file():
+        raise SystemExit('Run bash apps/macos/scripts/test.sh to build the safe headless Swift test server first.')
+    OUT.mkdir(parents=True, exist_ok=True)
+    native = ROOT / 'apps/harmonyos/entry/src/main/cpp'
+    executable = OUT / 'interop-client'
+    subprocess.run(['xcrun', 'clang++', '-std=c++17', '-pthread', '-Wall', '-Wextra',
+                    '-I', str(ROOT / 'apps/harmonyos/tests/fake'), '-I', str(native),
+                    str(ROOT / 'tools/interop_client.cpp'), str(native / 'client.cpp'),
+                    '-o', str(executable)], check=True)
+    for direction in (0, 1):
+        scenario(executable, direction)
+    print('PASS: 2 actual Swift↔C++ input/return scenarios; SDK injection calls use recording fakes ONLY.')
+    print('No AppKit app/event tap/physical input/Keychain/Preferences/device injection was used.')
 
 
 if __name__ == '__main__':

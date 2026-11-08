@@ -16,7 +16,8 @@ This repository contains native applications and test tooling. A passing build, 
 
 - Native universal Mac build passed: arm64 + x86_64, minimum14.0; complete Xcode build remains unverified.
 - DevEco native/ArkTS/HAP packaging passed; output is **unsigned**, not an installed signed release.
--40 Python tests,644 Swift checks plus8 TCP scenarios,354 C++ checks, and actual Swift↔C++ localhost pairing interop passed.
+- 40 protocol Python tests,644 Swift checks plus8 TCP scenarios,354 C++ checks, and two actual Swift↔C++ left/right input/return scenarios passed (recording fake SDK only).
+- The static Xcode checker resolves40 objects/53 links, all10 Swift sources and resource/scheme wiring;17 positive/negative checks passed. This is not an xcodebuild run.
 - Physical input, tray/background behavior and two-device runtime remain unverified. Strict M0–M4 gates are not all marked complete.
 
 Run `python3 tools/verify.py` for the combined regression. See the [machine-readable report](<critique/build-test.json>) and [milestone evidence](<PLAN.md>).

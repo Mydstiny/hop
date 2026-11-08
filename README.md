@@ -19,7 +19,8 @@
 |---|---|
 | Mac原生通用构建 | 通过，arm64 + x86_64，最低14.0；完整Xcode未验证 |
 | 鸿蒙DevEco构建 | 通过，原生 + ArkTS + HAP；**unsigned，未签名安装** |
-| 离线 / localhost | Python40测试、Swift644检查 + 8个TCP场景、C++354检查、真实Swift↔C++配对互通通过 |
+| 离线 / localhost | 协议Python40测试、Swift644检查 + 8个TCP场景、C++354检查；真实Swift↔C++左右2个输入/返回场景通过（仅假注入SDK） |
+| Xcode静态工程检查 | 40对象/53引用、全部10个Swift源文件及资源/scheme一致；17项正反测试通过，不代替xcodebuild |
 | 真机输入 / 常驻 / 双机验收 | **未验证，不标M0–M4全部完成** |
 
 可复现总入口：`python3 tools/verify.py`。详见[最终机器可读报告](<critique/build-test.json>)和[严格里程碑记录](<PLAN.md>)。

@@ -30,6 +30,15 @@ bash apps/macos/scripts/xcode-build.sh
 
 脚本不更改全局 `xcode-select`。本次开发环境只有CLT，没有完整Xcode，所以真实 `xcodebuild` 仍须补验。若本机装有Xcode，可通过 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` 为单次命令选用，不必更改全局设置。
 
+只有CLT时可额外运行以下**静态**检查；它不等价于Xcode构建：
+
+```sh
+python3 tools/check_xcode_project.py
+python3 tools/test_xcode_project.py
+```
+
+检查用Apple原生plutil解析工程，验证当前受支持的显式对象图、全部Swift源文件、资源生成/复制、Info.plist、最低系统/架构意图和共享scheme；17项正/反测试覆盖遗漏InputOwnership、悬空引用、错误资源、架构/最低版本漂移等。它不是完整pbxproj或build-settings求值器，不展开 `ARCHS_STANDARD`，也不验证签名/GUI运行。Debug明确是active-arch-only；Release helper显式请求两种架构。共享scheme没有TestAction，离线原生测试由单独脚本运行。
+
 ## 3. 自用 ad-hoc 版安装
 
 1. 解压通用构建包，将 `Hop.app` 拷到你自己的Applications目录（例如 `~/Applications`）。不要直接在构建缓存路径日常运行，路径与签名变化可能影响TCC授权。

@@ -69,7 +69,7 @@ Input_Result OH_Input_RequestInjection(Input_InjectAuthorizeCallback callback);
 - 已读取参考 HTML 的设计计划与来源部分；其范围冲突已按上文明确排除。
 - SDK 三项 API 均存在，未触及停工红线。
 - `xcode-select -p` 为 `/Library/Developer/CommandLineTools`。`xcodebuild -version` 实际失败：需要完整 Xcode；当前常见路径没有 Xcode.app。Swift 6.4 可用。不会把 xcodebuild 文件存在误报为已安装完整 Xcode；继续检查可用工具并使用 CLT 验证可验证部分，不篡改全局 xcode-select。
-- DevEco Studio 与 bundled SDK/build tools 存在；已完成真实签名、链接库、ArkTS 顶栏/后台声明和构建入口核验，详细证据见 [SDK_AUDIT](docs/SDK_AUDIT.md)。
+- DevEco Studio 与 bundled SDK/build tools 存在；已完成SDK真实API签名、链接库、ArkTS 顶栏/后台声明和构建入口核验，详细证据见 [SDK_AUDIT](docs/SDK_AUDIT.md)。
 
 ### 实现与验证检查点（2026-11-08）
 
@@ -112,11 +112,11 @@ python3 tools/verify.py          # 统一回归，写critique/build-test.json与
 - 只读hdc事实：在线目标曾为 `192.168.31.140:44491`，`MOR-M1 / 2in1 / OpenHarmony-7.0.0.109 / API26`；存在设备不是已安装/注入通过，更不是API20最低版本通过。
 - 动态符号审计实际arm64 `libhop.so`：OH_Input导入只有注入、授权、CapsLock状态查询及事件构造/销毁/setters，没有输入监听/拦截/全局捕获或无障碍符号。
 
-### 最终统一回归（2026-11-08 15:41–15:42 +08:00）
+### 首次交付统一回归（2026-11-08 15:41–15:42 +08:00）
 
 `python3 tools/verify.py` 最终exit0，六项子命令均exit0；报告 [critique/build-test.json](critique/build-test.json) 显示 `build.passing=true`、`tests.passing=true`、`failures=[]`，同时保留 `runtimeInputVerified=false` 与 `deviceInstalled=false`。40 Python测试、644 Swift检查、8个真实TCP场景、354 C++检查及Swift↔C++互通全部通过。最后一次鸿蒙构建包含解绑顺序补丁。
 
-交付包与SHA-256（重新构建/打包后校验和可能变化）：
+首次交付包快照与SHA-256（重新构建/打包后校验和可能变化；之后运行统一验证会自动更新 [artifacts/SHA256SUMS](artifacts/SHA256SUMS) 与 [报告](critique/build-test.json) 的 `artifacts` 字段，校验最新包应以这两处为准）：
 
 - Mac通用ad-hoc ZIP：`apps/macos/build/Hop-macos-universal-adhoc.zip`，`9aa296f90c9a5b2ff68c4a441498958570afaa94d588431654338e2fcd5b7d22`。
 - 鸿蒙arm64 unsigned HAP：`apps/harmonyos/entry/build/default/outputs/default/entry-default-unsigned.hap`，1,608,629字节，`97e501108da0f9df20a9d90057113aec769e3f3f109838da6dc62943656d3264`。
@@ -126,6 +126,16 @@ python3 tools/verify.py          # 统一回归，写critique/build-test.json与
 ### 提交口径
 
 仓库最初没有.git，现已初始化。已建立可复查源码提交：`6bf2b6d`（协议/映射/参考测试）、`56c838a`（Mac实现与离线验证）、`b7210cf`（鸿蒙实现与unsigned构建）；最后将验收文档、跨原生互通工具、统一回归报告及包校验和一并提交。**这些不是伪造M0–M4完成的里程碑提交**。待严格出口真正通过后，再按要求分别做对应里程碑验收提交。未签名包、缺少完整Xcode和未进行真机测试均保留公开记录。
+
+### 自动续推进第1轮（2026-11-08 15:51–15:53 +08:00）
+
+- 从当前仓库/goal重新核实：工作目录正确，起始提交 `92e18e3`、干净工作区；本机仍只有CLT，常见位置无完整Xcode；鸿蒙 `build-profile.json5` 的 `signingConfigs` 仍为空，真实Hvigor继续明确警告 `No signingConfig found`。同一外部未满足条件在本自动轮次首次复核，尚不将goal标为blocked或complete。
+- 扩展测试专用Swift headless peer，支持左/右布局与显式输入命令；仍只链接原生产codec/TCP/pairing，不创建AppKit应用或InputCapture。真实C++ Client+Injector通过录制用假SDK记录注入；不链接系统输入服务。
+- 两个布局均验证：单边确认不落盘、双边确认/COMMIT ACK/READY、带预按Shift/左按钮的ENTER精确ACK、拖动与双按钮、双轴滚轮方向、A重复、右Control、CapsLock，以及边缘返回前先释放Meta+B/按钮并恢复Caps。测试在LEAVING与LOCAL当时检查空集合，不能靠最后Stop掩盖缺失释放。
+- 新增 [Xcode结构检查](tools/check_xcode_project.py)：原生plutil解析40对象/53引用，核对全部10个Swift文件（含InputOwnership）、资源生成/复制、Info/最低版本/架构意图与scheme。新增 [17项正反测试](tools/test_xcode_project.py)（16个失败探针+真实工程正例），不修改工程、不代替xcodebuild。Debug仅当前架构，Release架构宏不由本工具求值，共享scheme没有TestAction，均明确记录。
+- 根统一验证增加这两项，并在全部成功打包后自动刷新包字节数/签名状态/SHA-256到报告及SHA256SUMS；修复legacy score仅构建通过时应为3的口径。最新一次8项子命令全部exit0，`failures=[]`，两项passing信号为true；40协议测试、17工程测试、644 Swift检查、8 TCP场景、354 C++检查、2个跨原生输入/返回场景全通过。
+- 最新包校验已由 `shasum -a 256 -c artifacts/SHA256SUMS` 验证通过。报告保留 `runtimeInputVerified=false`、`deviceInstalled=false`；没有真实权限/图形/Keychain写入、设备安装或物理注入。
+- 未满足的严格出口不变：缺少完整Xcode和本工程/目标设备的合法鸿蒙调试签名，真实系统授权/双机输入与故障验收尚未进行。没有用假SDK、静态工程检查或unsigned HAP替代这些出口，goal继续active。
 
 ## 已知待实测项
 
