@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import IOKit
 
 /// Injectable only for deterministic fail-safe tests; defaults are the native cursor APIs.
 struct CursorOperations {
@@ -16,6 +17,9 @@ final class InputCapture {
     private var source: CFRunLoopSource?
     private var hidden = false
     private var disassociated = false
+    private var appKitHidden = false
+    private var freezing = false
+    private var extraHiddenDisplays: [CGDirectDisplayID] = []
     private var returnPoint: CGPoint?
     private(set) var epoch: UInt32 = 0
     private var enterMessage: Message?
@@ -31,6 +35,7 @@ final class InputCapture {
     private var tapUsable = false
     private(set) var generation: UInt64 = 0
     private var cooldownUntil: TimeInterval = 0
+    private var insideSince: TimeInterval = 0
     var direction: UInt8 = 1
     var mayEnter: () -> Bool = { false }
     var peerSize: () -> (UInt32, UInt32) = { (1, 1) }
@@ -39,18 +44,54 @@ final class InputCapture {
     var changed: () -> Void = {}
     private let supportedCodes: Set<UInt16>
     private let modifierMasks: [UInt16: UInt16]
-    private let ordinaryCodes: Set<UInt16>
     private let escapeCode: UInt16?
     private let functionCode: UInt16?
     private let cursor: CursorOperations
     init(keymap: Keymap, cursor: CursorOperations = CursorOperations()) {
         supportedCodes = keymap.supported; modifierMasks = keymap.modifiers
         // Include unsupported Quartz virtual keycodes when postponing crossing for held keys.
-        ordinaryCodes = Set(UInt16(0)...UInt16(127)).subtracting(keymap.modifiers.keys)
         escapeCode = keymap.code(symbol: "kVK_Escape"); functionCode = keymap.code(symbol: "kVK_Function"); self.cursor = cursor
     }
     var isRunning: Bool { tap != nil }
-    static var permissionGranted: Bool { AXIsProcessTrusted() && CGPreflightListenEventAccess() }
+    /// Settings can show both switches on while the older preflight calls stay false
+    /// for an ad-hoc build. Creating the tap is the check that matches what sharing needs.
+    private static var tapAccepted = false
+    static var permissionGranted: Bool {
+        // A live sharing tap is the permission. Probing another tap while one
+        // is installed can fail and pop the floater even though sharing works.
+        if tapAccepted { return true }
+        if AXIsProcessTrusted(), listenEventAllowed { return true }
+        return probeActiveTap()
+    }
+    static func noteTapCreated() { tapAccepted = true }
+    static func noteTapLost() { tapAccepted = false }
+    static var listenEventAllowed: Bool {
+        CGPreflightListenEventAccess() || IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
+    }
+    static var permissionReport: String {
+        let ax = AXIsProcessTrusted()
+        let listen = listenEventAllowed
+        let tap = probeActiveTap()
+        return "设备控制 \(ax ? "已允许" : "未允许")，输入监控 \(listen ? "已允许" : "未允许")，监听 \(tap ? "可以创建" : "创建失败")"
+    }
+    private static var probedAt = Date.distantPast
+    private static var probed = false
+    private static func probeActiveTap() -> Bool {
+        let now = Date()
+        if now.timeIntervalSince(probedAt) < 1 { return probed }
+        probedAt = now
+        let mask = CGEventMask(1) << CGEventType.mouseMoved.rawValue
+        guard let tap = CGEvent.tapCreate(tap: .cghidEventTap, place: .headInsertEventTap, options: .defaultTap,
+                                          eventsOfInterest: mask, callback: { _, _, event, _ in
+            Unmanaged.passUnretained(event)
+        }, userInfo: nil) else {
+            probed = false
+            return false
+        }
+        CFMachPortInvalidate(tap)
+        probed = true
+        return true
+    }
     static func requestPermission() {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(options)
@@ -72,8 +113,16 @@ final class InputCapture {
                                              eventsOfInterest: mask, callback: { _, type, event, context in
             guard let context else { return Unmanaged.passUnretained(event) }
             let owner = Unmanaged<InputCapture>.fromOpaque(context).takeUnretainedValue()
-            if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            if type == .tapDisabledByTimeout {
+                // Main-thread UI work can delay this callback. Re-enable; do not drop the session.
+                if let tap = owner.tap { CGEvent.tapEnable(tap: tap, enable: true) }
+                owner.tapUsable = true
+                hopLog("event tap timeout — re-enabled")
+                return Unmanaged.passUnretained(event)
+            }
+            if type == .tapDisabledByUserInput {
                 owner.tapUsable = false // a disabled/lost tap cannot enforce quarantine
+                InputCapture.noteTapLost()
                 owner.restoreAndReportFault("Global event tap was disabled; re-enable Hop after checking permissions", reason: 3)
                 return Unmanaged.passUnretained(event)
             }
@@ -82,6 +131,7 @@ final class InputCapture {
             throw WireError.invalid("Cannot create active CGEventTap; check permissions")
         }
         tap = created; tapUsable = true
+        InputCapture.noteTapCreated()
         source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, created, 0)
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: created, enable: true)
@@ -97,6 +147,7 @@ final class InputCapture {
         if let tap { CGEvent.tapEnable(tap: tap, enable: false); CFMachPortInvalidate(tap) }
         if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
         source = nil; tap = nil; tapUsable = false; stopWhenDrained = false
+        InputCapture.noteTapLost()
     }
     private func removeDrainedTapLater() {
         guard stopWhenDrained, !ownership.needsDrain else { return }
@@ -118,42 +169,84 @@ final class InputCapture {
         moves.clear(); enterMessage = nil; heldKeys.removeAll(); buttons = 0; modifiers = 0
         if disassociated, cursor.associate(true) == .success { disassociated = false }
         if hidden, cursor.show(CGMainDisplayID()) == .success { hidden = false }
+        for id in extraHiddenDisplays { _ = cursor.show(id) }
+        extraHiddenDisplays.removeAll()
+        if appKitHidden { NSCursor.unhide(); appKitHidden = false }
         if wasCaptured, var point = returnPoint {
             if let y { let bounds = CGDisplayBounds(CGMainDisplayID()); point.y = bounds.minY + pixel(y, dimension: bounds.height) }
             _ = cursor.warp(point)
         }
         if !hidden && !disassociated { returnPoint = nil }
         cooldownUntil = monotonicNow() + 0.5
+        insideSince = 0
         return previousEpoch
     }
     func acknowledge(_ message: Message) throws {
-        guard mode == .pending, let expected = enterMessage, message == expected,
-              monotonicNow() - enteredAt < 0.3, Self.permissionGranted,
-              currentModifiers() == modifiers, currentButtons() == buttons, noNonmodifierKeysPressed(),
-              let position = CGEvent(source: nil)?.location, atEdge(position) else {
-            throw WireError.invalid("Stale/changed ENTER confirmation")
+        guard mode == .pending, let expected = enterMessage else {
+            throw WireError.invalid("ENTER confirmation while not waiting")
+        }
+        guard message == expected else { throw WireError.invalid("ENTER confirmation does not match") }
+        guard monotonicNow() - enteredAt < 1.0 else { throw WireError.invalid("ENTER confirmation too late") }
+        guard currentModifiers() == modifiers, currentButtons() == buttons, noNonmodifierKeysPressed() else {
+            throw WireError.invalid("Keys changed during ENTER confirmation")
+        }
+        guard let position = CGEvent(source: nil)?.location, atEdge(position) else {
+            throw WireError.invalid("Pointer left the edge before ENTER confirmation")
         }
         // No hiding/disassociation until the peer has positively acknowledged successful injection.
-        guard cursor.hide(CGMainDisplayID()) == .success else { throw WireError.invalid("Cannot hide cursor") }
-        hidden = true
+        try hideLocalCursor()
         disassociated = true // conservatively restore association even if the native call reports failure
         guard cursor.associate(false) == .success else {
             restore(); throw WireError.invalid("Cannot disassociate cursor")
         }
-        mode = .remote; enterMessage = nil; changed()
+        mode = .remote; enterMessage = nil
+        // macOS still applies the mouse delta to the local cursor before the event tap.
+        // Pin it at the crossing point so only the other computer's pointer moves.
+        freezeLocalCursor()
+        changed()
     }
     func tick() {
-        if mode == .local, hidden || disassociated { restore() } // retry failed native restoration, never re-enable swallowing
-        if mode == .pending, monotonicNow() - enteredAt >= 0.3 {
+        if mode == .remote { freezeLocalCursor() }
+        if mode == .local, hidden || disassociated || appKitHidden || !extraHiddenDisplays.isEmpty { restore() } // retry failed native restoration, never re-enable swallowing
+        if mode == .pending, monotonicNow() - enteredAt >= 1.0 {
+            hopLog("enter timeout")
             let old = restore(); if let old { send(.point(.leave, epoch: old, x: 0, y: 0, extra: [2])) }; changed()
+        }
+        // macOS often stops delivering move events before the cursor is reported on the exact edge pixel.
+        if mode == .local, mayEnter(), monotonicNow() >= cooldownUntil, !stopWhenDrained, !ownership.needsDrain,
+           let point = CGEvent(source: nil)?.location, atEdge(point) {
+            begin(at: point)
         }
         flushMove()
     }
     func flushMove() { if mode == .remote, let message = moves.take() { send(message) } }
-    private func atEdge(_ point: CGPoint) -> Bool {
+    /// Hide on every display. CGDisplayHideCursor is per-screen and refcounted; call it once per capture.
+    private func hideLocalCursor() throws {
+        guard cursor.hide(CGMainDisplayID()) == .success else { throw WireError.invalid("Cannot hide cursor") }
+        hidden = true
+        for id in Self.displayIDs() where id != CGMainDisplayID() && !extraHiddenDisplays.contains(id) {
+            if cursor.hide(id) == .success { extraHiddenDisplays.append(id) }
+        }
+        if !appKitHidden { NSCursor.hide(); appKitHidden = true }
+    }
+    private static func displayIDs() -> [CGDirectDisplayID] {
+        let ids = NSScreen.screens.compactMap { screen in
+            (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber).map { CGDirectDisplayID($0.uint32Value) }
+        }
+        return ids.isEmpty ? [CGMainDisplayID()] : ids
+    }
+    /// The window server moves the pointer before this tap runs. Put it back on every sample.
+    private func freezeLocalCursor() {
+        guard !freezing, mode == .remote, let point = returnPoint else { return }
+        freezing = true
+        _ = cursor.warp(point)
+        if cursor.associate(false) == .success { disassociated = true }
+        freezing = false
+    }
+    private func atEdge(_ point: CGPoint, margin: CGFloat = 6) -> Bool {
         let b = CGDisplayBounds(CGMainDisplayID())
         guard point.y >= b.minY, point.y < b.maxY else { return false }
-        return direction == 1 ? point.x >= b.maxX - 1 && point.x <= b.maxX + 1 : point.x <= b.minX + 1 && point.x >= b.minX - 1
+        return direction == 1 ? point.x >= b.maxX - margin : point.x <= b.minX + margin
     }
     private func currentModifiers() -> UInt16 {
         var mask: UInt16 = 0
@@ -169,13 +262,14 @@ final class InputCapture {
         return mask
     }
     private func noNonmodifierKeysPressed() -> Bool {
-        return ownership.localKeys.allSatisfy { modifierMasks[$0] != nil }
-            && !ordinaryCodes.contains { CGEventSource.keyState(.hidSystemState, key: $0) }
+        // Only keys observed by this tap. CGEventSource.keyState reports keycode 0
+        // as held on this Mac when A is not pressed, which blocked every crossing.
+        ownership.localKeys.allSatisfy { modifierMasks[$0] != nil }
     }
-    private func begin(_ event: CGEvent) {
+    private func begin(_ event: CGEvent) { begin(at: event.location) }
+    private func begin(at position: CGPoint) {
         let size = peerSize(); remoteWidth = Double(size.0); remoteHeight = Double(size.1)
         let bounds = CGDisplayBounds(CGMainDisplayID())
-        let position = event.location
         virtualX = direction == 1 ? min(2, remoteWidth - 1) : max(0, remoteWidth - 3)
         virtualY = pixel(normalized(position.y - bounds.minY, dimension: bounds.height), dimension: remoteHeight)
         modifiers = currentModifiers(); buttons = currentButtons()
@@ -189,7 +283,8 @@ final class InputCapture {
         let message = Message.point(.enter, epoch: epoch, x: normalized(virtualX, dimension: remoteWidth),
                                     y: normalized(virtualY, dimension: remoteHeight), extra: tail)
         returnPoint = CGPoint(x: direction == 1 ? bounds.maxX - 8 : bounds.minX + 8, y: position.y)
-        enterMessage = message; mode = .pending; enteredAt = monotonicNow(); send(message); changed()
+        enterMessage = message; mode = .pending; enteredAt = monotonicNow(); insideSince = 0; send(message); changed()
+        hopLog("enter sent x=\(position.x) y=\(position.y)")
     }
     #if HOP_TESTING
     // Test-only state staging: invokes NO capture, display mutation, or physical input query.
@@ -219,6 +314,7 @@ final class InputCapture {
     func recoveryTestFault() { restoreAndReportFault("Test fault", reason: 3) }
 #endif
     private func handle(_ type: CGEventType, event: CGEvent) -> Bool {
+        if freezing { return true } // swallow the cursor-pin warp, do not add it to the remote pointer
         // CGHID events from hardware have no originating userspace PID. Never relay synthetic injection.
         guard event.getIntegerValueField(.eventSourceUnixProcessID) == 0 else { return false }
         let swallowed = handlePhysical(type, event: event)
@@ -267,7 +363,14 @@ final class InputCapture {
             return suppress
         }
         if mode == .pending {
-            if !isMove || !atEdge(event.location) {
+            let cursor = CGEvent(source: nil)?.location ?? event.location
+            // A 1px bounce used to cancel the crossing before the PC could acknowledge it.
+            if atEdge(cursor, margin: 24) {
+                insideSince = 0
+            } else if insideSince == 0 {
+                insideSince = monotonicNow()
+            } else if monotonicNow() - insideSince >= 0.25 {
+                hopLog("pending cancelled x=\(cursor.x) y=\(cursor.y)")
                 let old = restore()
                 if let old { send(.point(.leave, epoch: old, x: 0, y: 0, extra: [1])) }
                 changed()
@@ -278,6 +381,7 @@ final class InputCapture {
             virtualX = max(0, min(remoteWidth - 1, virtualX + Double(event.getIntegerValueField(.mouseEventDeltaX))))
             virtualY = max(0, min(remoteHeight - 1, virtualY + Double(event.getIntegerValueField(.mouseEventDeltaY))))
             moves.offer(.point(.move, epoch: epoch, x: normalized(virtualX, dimension: remoteWidth), y: normalized(virtualY, dimension: remoteHeight)))
+            freezeLocalCursor()
             return true
         }
         flushMove() // ordered before EVERY nonmove, including keys, buttons and wheel
@@ -315,5 +419,16 @@ final class InputCapture {
         default: break
         }
         return suppress // local-owned releases pass ALSO locally, after remote forwarding
+    }
+}
+
+func hopLog(_ message: String) {
+    let line = "\(Date()) \(message)\n"
+    let url = URL(fileURLWithPath: "/tmp/hop-cross.log")
+    guard let data = line.data(using: .utf8) else { return }
+    if FileManager.default.fileExists(atPath: url.path), let handle = try? FileHandle(forWritingTo: url) {
+        handle.seekToEndOfFile(); handle.write(data); try? handle.close()
+    } else {
+        try? data.write(to: url)
     }
 }

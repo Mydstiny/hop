@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iostream>
 #include <chrono>
+#include <thread>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
@@ -79,7 +80,7 @@ static void ClientTests(){
  Message leave(Type::Leave,1);Send(fd,leave);Message bye(Type::Bye);Send(fd,bye);});Check(fake::Empty(),"client normal leave releases");
  WithClient(true,[](int fd,Client&,std::atomic<int>&){ReceiveNonHeartbeat(fd);Send(fd,Enter());Check(ReceiveNonHeartbeat(fd).type()==Type::Bye,"unauthenticated input rejected");});Check(fake::mouse.empty()&&fake::key.empty(),"no unauthenticated injection");
  WithClient(true,[](int fd,Client&,std::atomic<int>&){Authenticate(fd,true);Send(fd,Enter());ReceiveNonHeartbeat(fd);Message leave(Type::Leave,1);Send(fd,leave);Send(fd,Enter());Check(ReceiveNonHeartbeat(fd).type()==Type::Bye,"stale epoch rejected");});Check(fake::Empty(),"stale epoch failure releases");
- WithClient(true,[](int fd,Client&,std::atomic<int>&){Authenticate(fd,true);Send(fd,Enter());ReceiveNonHeartbeat(fd);Message move(Type::Move,1);Put16(move.data(),524);Send(fd,move);Put16(move.data(),0);Send(fd,move);auto request=ReceiveNonHeartbeat(fd);Check(request.type()==Type::RequestLeave,"return edge request");Check(fake::Empty(),"release before return request");Check(ReceiveNonHeartbeat(fd).type()==Type::Bye,"300ms leaving deadline");});
+ WithClient(true,[](int fd,Client&,std::atomic<int>&){Authenticate(fd,true);Send(fd,Enter());ReceiveNonHeartbeat(fd);Message move(Type::Move,1);Put16(move.data(),524);Send(fd,move);Put16(move.data(),0);Send(fd,move);auto request=ReceiveNonHeartbeat(fd);Check(request.type()==Type::RequestLeave,"return edge request");Check(fake::Empty(),"release before return request");std::this_thread::sleep_for(std::chrono::milliseconds(400));Send(fd,Enter(2));Check(ReceiveNonHeartbeat(fd).type()==Type::Enter,"leave timeout stays connected and local");});
  WithClient(true,[](int fd,Client&,std::atomic<int>&){Authenticate(fd,true);Send(fd,Enter());ReceiveNonHeartbeat(fd);auto begin=std::chrono::steady_clock::now();Check(ReceiveNonHeartbeat(fd).type()==Type::Bye,"3s heartbeat deadline");Check(std::chrono::steady_clock::now()-begin<std::chrono::seconds(4),"heartbeat bounded");});Check(fake::Empty(),"timeout releases held state");
  WithClient(true,[](int fd,Client&,std::atomic<int>&){Authenticate(fd,true);Send(fd,Enter());ReceiveNonHeartbeat(fd);{std::lock_guard<std::mutex> l(fake::mutex);fake::failNext=true;}Message move(Type::Move,1);Send(fd,move);auto bye=ReceiveNonHeartbeat(fd);Check(bye.type()==Type::Bye&&bye.data()[0]==3,"injection failure BYE3");});Check(fake::Empty(),"injection error releases held state");
  WithClient(true,[](int fd,Client&,std::atomic<int>&){Authenticate(fd,true);Send(fd,Enter());ReceiveNonHeartbeat(fd);fake::authorization=UNAUTHORIZED;auto bye=ReceiveNonHeartbeat(fd);Check(bye.type()==Type::Bye&&bye.data()[0]==3,"revocation BYE3");});Check(fake::releaseAttempts>=2,"revocation attempts actual releases");

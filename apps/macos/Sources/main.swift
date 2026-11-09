@@ -10,7 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.item = item
         item.button?.image = NSImage(systemSymbolName: "computermouse", accessibilityDescription: "Hop keyboard and mouse sharing")
         item.button?.target = self; item.button?.action = #selector(togglePopover)
-        popover.behavior = .transient
+        popover.behavior = .semitransient
         do {
             guard let url = Bundle.main.url(forResource: "keymap", withExtension: "json") else { throw WireError.invalid("Shared keymap resource missing; rebuild Hop") }
             let keymap = try Keymap.load(url: url)
@@ -22,8 +22,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 panel?.refresh()
                 item?.button?.image = NSImage(systemSymbolName: controller?.input.mode == .remote ? "computermouse.fill" : "computermouse", accessibilityDescription: "Hop")
             }
-            controller.start() // Listening only; no event tap until user explicitly enables sharing.
+            controller.start()
         } catch {
+            try? "Hop could not start: \(error)".write(toFile: "/tmp/hop-start-error.txt", atomically: true, encoding: .utf8)
+            hopLog("start failed \(error)")
             let view = NSViewController(); view.view = NSView(frame: NSRect(x: 0, y: 0, width: 350, height: 150))
             let label = NSTextField(wrappingLabelWithString: "Hop could not start:\n\(error)")
             label.frame = NSRect(x: 20, y: 55, width: 310, height: 80); view.view.addSubview(label)
@@ -33,7 +35,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     @objc private func togglePopover() {
         guard let button = item?.button else { return }
-        if popover.isShown { popover.performClose(nil) } else { panel?.refresh(); popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY) }
+        if popover.isShown { popover.performClose(nil) } else {
+            panel?.refresh()
+            NSApp.activate(ignoringOtherApps: true)
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        }
     }
     @objc private func quit() { NSApplication.shared.terminate(nil) }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply { controller?.quit(); return .terminateNow }

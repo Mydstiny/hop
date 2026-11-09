@@ -1,4 +1,5 @@
 #include "client.h"
+#include <hilog/log.h>
 #include "injector.h"
 #include "pair_state.h"
 #include <arpa/inet.h>
@@ -71,16 +72,25 @@ void Client::Run(Config cfg) noexcept {
             if(m.type()==Type::Enter){Require(mode==Mode::Local&&m.epoch()!=lastEpoch,"unexpected ENTER");if(lastEpoch)Require(int32_t(m.epoch()-lastEpoch)>0,"stale epoch");epoch=lastEpoch=m.epoch();
                 InjectRequire(input.Position(U16(p),U16(p+2))&&input.Modifiers(U16(p+4))&&input.Buttons(U16(p+6)),"ENTER injection failed");
                 enterX=input.x();armed=false;mode=Mode::Remote;Write(fd,m);notify("remote","Receiving Mac keyboard and mouse");
-            }else if(m.type()==Type::Leave){Require((mode==Mode::Remote||mode==Mode::Leaving)&&m.epoch()==epoch,"stale LEAVE");input.Release();mode=Mode::Local;notify("local","Input returned to Mac");}
-            else {Require(mode==Mode::Remote&&m.epoch()==epoch,"stale or out-of-state input");
-                if(m.type()==Type::Move)InjectRequire(input.Position(U16(p),U16(p+2)),"Mouse move injection failed");
-                else if(m.type()==Type::Button)InjectRequire(input.Position(U16(p+2),U16(p+4))&&input.Buttons(U16(p+6)),"Mouse button injection failed");
-                else if(m.type()==Type::Wheel)InjectRequire(input.Wheel(int32_t(U32(p)),int32_t(U32(p+4))),"Wheel injection failed");
-                else if(m.type()==Type::Key)InjectRequire(input.Key(U16(p),U16(p+2),p[4],p[5]),"Key injection failed");
-                else throw std::runtime_error("wrong input direction/type");
-                if(m.type()==Type::Move||m.type()==Type::Button){if(direction==1?input.x()>=enterX+4:input.x()<=enterX-4)armed=true;bool edge=direction==1?input.x()<=0:input.x()>=input.width()-1;
-                    if(armed&&edge){input.Release();mode=Mode::Leaving;leaveDeadline=now+300;Message request(Type::RequestLeave,epoch);Put16(request.data(),U16(p+(m.type()==Type::Move?0:2)));Put16(request.data()+2,U16(p+(m.type()==Type::Move?2:4)));Write(fd,request);notify("leaving");}
-                }
+            }else if(m.type()==Type::Leave){
+                // A leave that arrives before ENTER, or after we are already local, is not fatal.
+                // Killing the socket here is what dropped the link whenever the pointer touched the edge.
+                if(mode==Mode::Remote||mode==Mode::Leaving){input.Release();mode=Mode::Local;notify("local","Input returned to Mac");}
+                else OH_LOG_Print(LOG_APP, LOG_INFO, 0x0000, "Hop", "ignore leave while local");
+            }
+            else {
+                // Moves already in flight when we ask to return, or after we are local again,
+                // used to throw and drop the whole connection.
+                if(mode==Mode::Remote&&m.epoch()==epoch){
+                    if(m.type()==Type::Move)InjectRequire(input.Position(U16(p),U16(p+2)),"Mouse move injection failed");
+                    else if(m.type()==Type::Button)InjectRequire(input.Position(U16(p+2),U16(p+4))&&input.Buttons(U16(p+6)),"Mouse button injection failed");
+                    else if(m.type()==Type::Wheel)InjectRequire(input.Wheel(int32_t(U32(p)),int32_t(U32(p+4))),"Wheel injection failed");
+                    else if(m.type()==Type::Key)InjectRequire(input.Key(U16(p),U16(p+2),p[4],p[5]),"Key injection failed");
+                    else throw std::runtime_error("wrong input direction/type");
+                    if(m.type()==Type::Move||m.type()==Type::Button){if(direction==1?input.x()>=enterX+4:input.x()<=enterX-4)armed=true;bool edge=direction==1?input.x()<=0:input.x()>=input.width()-1;
+                        if(armed&&edge){input.Release();mode=Mode::Leaving;leaveDeadline=now+300;Message request(Type::RequestLeave,epoch);Put16(request.data(),U16(p+(m.type()==Type::Move?0:2)));Put16(request.data()+2,U16(p+(m.type()==Type::Move?2:4)));Write(fd,request);notify("leaving");}
+                    }
+                }else OH_LOG_Print(LOG_APP, LOG_INFO, 0x0000, "Hop", "ignore input type %{public}d", int(m.type()));
             }lastReceive=now;
         };
         while(!stop_){uint64_t now=Now();std::deque<std::string> commands;{std::lock_guard<std::mutex> l(commandsMutex_);commands.swap(commands_);}
@@ -94,17 +104,17 @@ void Client::Run(Config cfg) noexcept {
             if(stop_)break;
             if(now-lastReceive>=3000)throw NetworkFailure("Heartbeat timeout");
             if(!authenticated&&now-connected>=60000)throw NetworkFailure("Pairing timed out");
-            if(mode==Mode::Leaving&&now>=leaveDeadline)throw NetworkFailure("Return edge acknowledgment timeout");
+            if(mode==Mode::Leaving&&now>=leaveDeadline){input.Release();mode=Mode::Local;notify("local","Return edge timed out; connection kept");OH_LOG_Print(LOG_APP, LOG_INFO, 0x0000, "Hop", "leave ack timeout, stay connected");}
             Require(Injector::Authorization()==AUTHORIZED,"Injection authorization revoked");
             if(now-lastSent>=1000){Message alive(Type::Keepalive);Put64(alive.data(),now);Write(fd,alive);lastSent=now;}
             pollfd p{fd,POLLIN,0};int ready=poll(&p,1,25);if(ready<0){if(errno==EINTR)continue;throw std::runtime_error("TCP poll failed");}
             if(ready>0){uint8_t b[4096];ssize_t n=recv(fd,b,sizeof(b),0);if(n>0)decoder.feed(b,size_t(n),handle);else if(n==0)throw std::runtime_error(decoder.partial()?"Truncated frame at EOF":"Mac connection closed");else if(errno!=EAGAIN&&errno!=EWOULDBLOCK&&errno!=EINTR)throw std::runtime_error("TCP read failed");}
         }
         input.Release();notify("disconnected","Disconnected");
-    }catch(const PeerBye& e){input.Release();notify("disconnected",e.what());}
-    catch(const InjectionFailure& e){input.Release();if(!stop_){bye(3);event_({"error","disconnected",e.what(),"","",0});}else notify("disconnected");}
-    catch(const NetworkFailure& e){input.Release();if(!stop_){bye(2);event_({"error","disconnected",e.what(),"","",0});}else notify("disconnected");}
-    catch(const std::exception& e){input.Release();if(!stop_){bye(Injector::Authorization()==AUTHORIZED?1:3);event_({"error","disconnected",e.what(),"","",0});}else notify("disconnected");}
+    }catch(const PeerBye& e){OH_LOG_Print(LOG_APP, LOG_INFO, 0x0000, "Hop", "peer bye %{public}s", e.what());input.Release();notify("disconnected",e.what());}
+    catch(const InjectionFailure& e){OH_LOG_Print(LOG_APP, LOG_ERROR, 0x0000, "Hop", "inject fail %{public}s", e.what());input.Release();if(!stop_){bye(3);event_({"error","disconnected",e.what(),"","",0});}else notify("disconnected");}
+    catch(const NetworkFailure& e){OH_LOG_Print(LOG_APP, LOG_ERROR, 0x0000, "Hop", "network fail %{public}s", e.what());input.Release();if(!stop_){bye(2);event_({"error","disconnected",e.what(),"","",0});}else notify("disconnected");}
+    catch(const std::exception& e){OH_LOG_Print(LOG_APP, LOG_ERROR, 0x0000, "Hop", "session fail %{public}s", e.what());input.Release();if(!stop_){bye(Injector::Authorization()==AUTHORIZED?1:3);event_({"error","disconnected",e.what(),"","",0});}else notify("disconnected");}
     catch(...){input.Release();event_({"error","disconnected","Unexpected native failure","","",0});}
     input.Release();{std::lock_guard<std::mutex> lock(fdMutex_);if(fd>=0){shutdown(fd,SHUT_RDWR);close(fd);}fd_=-1;}
 }

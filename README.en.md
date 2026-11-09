@@ -4,6 +4,17 @@
 
 The keyboard and mouse stay physically attached to **one Mac**. Push the pointer across a configured left/right edge to control **one HarmonyOS PC**; the keyboard follows. Push back across the opposite edge to return. Nothing more.
 
+## Download
+
+GitHub Release ships two artifacts under the [MIT license](LICENSE).
+
+| File | Signature | Install |
+|---|---|---|
+| `Hop-macos-universal.zip` | ad-hoc, not notarized | Unzip and open `Hop.app`. macOS will ask for Accessibility and Input Monitoring |
+| `Hop-harmonyos-unsigned.hap` | **unsigned.** Sign it with your own debug certificate before install | Do not rename an unsigned package to look signed. Steps are in [HarmonyOS install](docs/INSTALL_HARMONYOS.md) |
+
+Trusted LAN only. There is no TLS.
+
 ## Status — not yet hardware-accepted
 
 This repository contains native applications and test tooling. A passing build, localhost handshake or fake injection test is **not** proof that physical input, system authorization, tray residency or two-device crossing works. Exact commands, results and outstanding gates are kept in the [plan](<PLAN.md>). Complete the unchecked [acceptance checklist](<docs/ACCEPTANCE.md>) before calling the product ready for daily use.

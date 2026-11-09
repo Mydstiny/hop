@@ -13,7 +13,7 @@ final class PairingSession {
     private(set) var recovery: Candidate?
     private(set) var connectedAt: TimeInterval = 0
     private(set) var lastReceive: TimeInterval = 0
-    private var lastHeartbeatReceived: TimeInterval?
+    private var heartbeatTimes: [TimeInterval] = []
     var pairingAllowed = false
     var identity: [UInt8]
     var direction: UInt8
@@ -34,15 +34,19 @@ final class PairingSession {
         // Only a double-confirmed COMMIT may survive a lost connection, at most 60 seconds.
         if let challenge, commitSent, localConfirmed, peerConfirmed { recovery = challenge }
         peer = nil; authenticated = false; localConfirmed = false; peerConfirmed = false
-        commitSent = false; challenge = nil; lastHeartbeatReceived = nil
+        commitSent = false; challenge = nil; heartbeatTimes.removeAll()
         changed()
     }
     func cancelPairing() { reset(); recovery = nil; pairingAllowed = false; changed() }
     func forget() { cancelPairing(); binding = nil; changed() }
     func received(_ message: Message) throws {
         if message.type == .keepalive {
-            if let last = lastHeartbeatReceived, now() - last < 0.1 { throw WireError.invalid("Heartbeat exceeds 10 Hz") }
-            lastHeartbeatReceived = now(); lastReceive = now(); return
+            // Judge the last second, not the gap between two reads. A stalled main
+            // thread delivers a backlog in one burst; that is not a 10 Hz flood.
+            let time = now()
+            heartbeatTimes.removeAll { time - $0 >= 1 }
+            if heartbeatTimes.count >= 10 { throw WireError.invalid("Heartbeat exceeds 10 Hz") }
+            heartbeatTimes.append(time); lastReceive = time; return
         }
         guard message.type == .hello else { throw WireError.invalid("Unexpected handshake message") }
         guard !authenticated, message.flags == 0 else { throw WireError.invalid("Unexpected HELLO/ACK") }

@@ -103,6 +103,24 @@ python3 tools/device_preflight.py --target YOUR_DEVICE_TARGET \
 
 早期对实际unsigned HAP运行官方验证器，进程exit1，明确报告 **`No Hap Signing Block before ZIP Central Directory`** 与 `Verify Hap failed, signature not found.`，并非只靠文件名判断未签名。工具还发出未在帮助中列出的 `outproof` 警告；预检只使用帮助确认的 `-inFile`、`-outCertChain`、`-outProfile`，不臆造该参数。
 
+## 4.1 给 Release 里的未签名包签名
+
+GitHub Release 的 `Hop-harmonyos-unsigned.hap` 没有签名块，不能直接 `hdc install`。用你自己的调试 keystore、证书和 profile（包名必须是 `dev.hop.input`，profile 里要有这台电脑的 UDID）本地签名：
+
+```sh
+# 路径按本机 DevEco / 证书实际位置替换。不要把密码写进仓库。
+java -jar "$DEVECO/sdk/default/openharmony/toolchains/lib/hap-sign-tool.jar" sign-app \
+  -mode localSign -signAlg SHA256withECDSA \
+  -keystoreFile /ABSOLUTE/PATH/debug.p12 -keystorePwd '***' \
+  -keyAlias YOUR_ALIAS -keyPwd '***' \
+  -appCertFile /ABSOLUTE/PATH/debug.cer \
+  -profileFile /ABSOLUTE/PATH/debug.p7b \
+  -inFile Hop-harmonyos-unsigned.hap \
+  -outFile Hop-harmonyos-signed.hap
+```
+
+然后只安装 `Hop-harmonyos-signed.hap`。证书、p12、p7b 和密码留在你自己的机器上。
+
 ## 5. 安装与启动（签名完成后）
 
 核对签名和来源后，将下列占位路径替换为你实际的签名包；不要把unsigned文件改名成signed：

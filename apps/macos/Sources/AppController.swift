@@ -13,6 +13,8 @@ final class AppController {
     private var moveTimer: Timer?
     private var heartbeatAt: TimeInterval = 0
     private var pairingUntil: TimeInterval = 0
+    private var awaitingPermission = false
+    private var displaySignature = ""
     private var observers: [NSObjectProtocol] = []
     var changed: () -> Void = {}
 
@@ -42,7 +44,10 @@ final class AppController {
         }
         session.send = { [weak self] message in self?.send(message) }
         session.changed = { [weak self] in self?.update() }
-        server.onListening = { [weak self] port in self?.listenerPort = port; self?.status = "Listening on TCP \(port)"; self?.update() }
+        server.onListening = { [weak self] port in
+            hopLog("listening \(port)")
+            self?.listenerPort = port; self?.status = "Listening on TCP \(port)"; self?.update()
+        }
         server.onAccept = { [weak self] id in
             guard let self else { return }
             self.connectionID = id; self.session.connected(); self.heartbeatAt = monotonicNow()
@@ -57,18 +62,28 @@ final class AppController {
     }
     func start() {
         server.start(identity: session.identity)
+        if sharingWanted { setEnabled(true) }
         tickTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in self?.tick() }
         moveTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 120, repeats: true) { [weak self] _ in self?.input.tick() }
         if let tickTimer { RunLoop.main.add(tickTimer, forMode: .common) }
         if let moveTimer { RunLoop.main.add(moveTimer, forMode: .common) }
+        PermissionDock.shared.showIfNeeded()
         let workspace = NSWorkspace.shared.notificationCenter
         for name in [NSWorkspace.willSleepNotification, NSWorkspace.screensDidSleepNotification, NSWorkspace.sessionDidResignActiveNotification] {
             observers.append(workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 self?.disableForFault("Sleep/session lock — local input restored; enable Hop to resume", byeReason: 0)
             })
         }
+        displaySignature = Self.screenLayout()
         observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
-            self?.disableForFault("Display configuration changed — local input restored", byeReason: 0)
+            guard let self else { return }
+            let layout = Self.screenLayout()
+            // The Dock, menu bar, and pointer reaching a screen edge post this
+            // notification without moving any display. Only a real layout change
+            // should drop the session.
+            guard layout != self.displaySignature else { return }
+            self.displaySignature = layout
+            self.disableForFault("Display configuration changed — local input restored", byeReason: 0)
         })
     }
     private func send(_ message: Message) { if let id = connectionID { server.send(message, id: id) } }
@@ -87,9 +102,22 @@ final class AppController {
             if message.type == .hello || message.type == .keepalive { try session.received(message); update(); return }
             guard session.authenticated else { throw WireError.invalid("Input before authentication") }
             switch message.type {
-            case .enter: try input.acknowledge(message)
+            case .enter:
+                do { try input.acknowledge(message) }
+                catch {
+                    hopLog("enter ack failed: \(error)")
+                    if let epoch = input.restore() {
+                        send(.point(.leave, epoch: epoch, x: 0, y: 0, extra: [2]))
+                    }
+                    update()
+                    return
+                }
             case .requestLeave:
-                guard input.mode == .remote, message.epoch == input.epoch else { throw WireError.invalid("Stale REQUEST_LEAVE") }
+                guard input.mode == .remote, message.epoch == input.epoch else {
+                    hopLog("ignored request-leave mode=\(input.mode) epoch=\(message.epoch)")
+                    update()
+                    return
+                }
                 let old = input.restore(y: message.payload.u16(2))
                 if let old { send(.point(.leave, epoch: old, x: message.payload.u16(0), y: message.payload.u16(2), extra: [0])) }
             default: throw WireError.invalid("Unexpected client input type")
@@ -113,6 +141,7 @@ final class AppController {
         if let epoch = input.restore() { send(.point(.leave, epoch: epoch, x: 0, y: 0, extra: [reason])) }
     }
     private func close(reason: UInt8?, text: String) {
+        hopLog("close \(text)")
         if let id = connectionID {
             server.close(id: id, final: reason.map { Message(type: .bye, payload: [$0]) })
         }
@@ -125,16 +154,33 @@ final class AppController {
         restoreAndNotify(reason: 1); input.stop(drain: drain); enabled = false
         close(reason: byeReason, text: text)
     }
+    private static func screenLayout() -> String {
+        NSScreen.screens.map { screen in
+            let frame = screen.frame
+            return "\(Int(frame.origin.x)),\(Int(frame.origin.y)),\(Int(frame.width))x\(Int(frame.height))"
+        }.joined(separator: "|")
+    }
+    private var sharingWanted: Bool {
+        if UserDefaults.standard.object(forKey: "HopSharingEnabled") == nil { return true }
+        return UserDefaults.standard.bool(forKey: "HopSharingEnabled")
+    }
     func setEnabled(_ value: Bool) {
         if !value {
-            restoreAndNotify(reason: 1); input.stop(); enabled = false; status = "Sharing disabled; local input restored"; update(); return
+            restoreAndNotify(reason: 1); input.stop(); enabled = false; awaitingPermission = false
+            UserDefaults.standard.set(false, forKey: "HopSharingEnabled")
+            status = "Sharing disabled; local input restored"; update(); return
         }
         do {
-            try input.start(); enabled = true; status = session.authenticated ? "Connected — sharing enabled" : "Sharing enabled — waiting for paired device"
-        } catch { input.restore(); enabled = false; status = String(describing: error) }
+            try input.start(); enabled = true; awaitingPermission = false
+            UserDefaults.standard.set(true, forKey: "HopSharingEnabled")
+            status = session.authenticated ? "Connected — sharing enabled" : "Sharing enabled — waiting for paired device"
+        } catch {
+            input.restore(); enabled = false; awaitingPermission = true; status = String(describing: error)
+            PermissionDock.shared.show()
+        }
         update()
     }
-    func requestPermissions() { InputCapture.requestPermission(); update() }
+    func requestPermissions() { InputCapture.requestPermission(); PermissionDock.shared.show(); update() }
     func setDirection(_ direction: UInt8) {
         guard direction != session.direction else { return }
         restoreAndNotify(reason: 1)
@@ -166,7 +212,9 @@ final class AppController {
         } catch { close(reason: 0, text: "Could not remove Keychain binding: \(error)") }
     }
     private func tick() {
-        if enabled, !InputCapture.permissionGranted { disableForFault("Permission revoked — local input restored", drain: false); return }
+        // Preflight APIs stay false for a granted ad-hoc build. Do not treat that as revocation;
+        // the event tap callback reports a real loss. Re-enable only while the first grant is pending.
+        if !enabled, awaitingPermission, InputCapture.permissionGranted { setEnabled(true); return }
         if pairingUntil != 0, monotonicNow() >= pairingUntil {
             session.pairingAllowed = false; pairingUntil = 0
             if session.challenge == nil { update() }
@@ -185,11 +233,21 @@ final class AppController {
         for observer in observers { NSWorkspace.shared.notificationCenter.removeObserver(observer); NotificationCenter.default.removeObserver(observer) }
         server.stop()
     }
-    private func update() { changed() }
+    private func update() {
+        PermissionDock.shared.closeIfGranted()
+        changed()
+    }
     var stateText: String {
         if input.mode == .remote { return "Controlling remote computer" }
         if input.mode == .pending { return "Waiting for remote permission / ENTER acknowledgement" }
-        if session.authenticated { return enabled ? "Connected — local input" : "Connected — sharing disabled" }
+        if session.authenticated {
+            if enabled { return "Connected — local input" }
+            if !InputCapture.permissionGranted,
+               status.contains("permission") || status.contains("Grant") || status.contains("Cannot") {
+                return status
+            }
+            return "Connected — sharing disabled"
+        }
         return status
     }
 }

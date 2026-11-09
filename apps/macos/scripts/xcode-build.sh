@@ -21,3 +21,6 @@ fi
 xcodebuild -project "$ROOT/Hop.xcodeproj" -scheme Hop -configuration Release \
   -derivedDataPath "$OUT/DerivedData" -destination 'generic/platform=macOS' \
   ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO build
+# CODE_SIGNING_ALLOWED=NO leaves a linker signature. TCC ignores that for
+# Accessibility and Input Monitoring even when the switch looks enabled.
+bash "$ROOT/scripts/sign.sh" "$OUT/DerivedData/Build/Products/Release/Hop.app"

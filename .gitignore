@@ -12,6 +12,10 @@ __pycache__/
 **/DerivedData/
 **/local.properties
 **/*.p12
+apps/macos/signing/
+apps/harmonyos/signing.local/
+**/.clangd
+**/.clang-tidy
 **/*.p7b
 **/*.cer
 **/*.keystore

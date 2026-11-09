@@ -147,9 +147,10 @@ private final class Fixture {
         let timeout = Fixture(); timeout.clock.value += 3
         rejects("3 second heartbeat timeout") { try timeout.session.checkDeadline() }
         let keepalive = Message(type: .keepalive, payload: [UInt8](repeating: 0, count: 8))
-        let rate = Fixture(); try rate.session.received(keepalive)
+        let rate = Fixture()
+        for _ in 0..<10 { try rate.session.received(keepalive) }
         rejects("heartbeat above 10Hz") { try rate.session.received(keepalive) }
-        rate.clock.value += 0.101; try rate.session.received(keepalive)
+        rate.clock.value += 1; try rate.session.received(keepalive)
         expect(rate.session.lastReceive == rate.clock.value, "legal frame refreshes monotonic deadline")
         let noHello = Fixture()
         for _ in 0..<5 { noHello.clock.value += 1; try noHello.session.received(keepalive) }

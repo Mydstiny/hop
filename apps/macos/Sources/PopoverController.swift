@@ -99,10 +99,28 @@ final class PopoverController: NSViewController {
         pair.isEnabled = !model.pairingAllowed
         pair.title = model.pairingAllowed ? "Waiting for pairing request…" : "Pair a computer…"
         unpair.isHidden = model.pairedName == nil
-        view.layoutSubtreeIfNeeded()
-        let size = NSSize(width: 360, height: max(360, stack.fittingSize.height + 36))
+        let size = contentSize()
+        guard preferredContentSize != size else { return }
         preferredContentSize = size
         view.setFrameSize(size)
+        view.window?.setContentSize(size)
+    }
+    /// Height comes from each row's own text, never from the window's current height.
+    /// Measuring the live stack made every refresh add another empty band at the top.
+    private func contentSize() -> NSSize {
+        let width: CGFloat = 360
+        var total: CGFloat = 36
+        let visible = stack.arrangedSubviews.filter { !$0.isHidden }
+        for (index, item) in visible.enumerated() {
+            if let label = item as? NSTextField, label.cell?.wraps == true {
+                label.preferredMaxLayoutWidth = 320
+            }
+            var row = item.intrinsicContentSize.height
+            if !row.isFinite || row <= 0 || row > 160 { row = min(max(item.fittingSize.height, 16), 160) }
+            total += row
+            if index + 1 < visible.count { total += stack.spacing }
+        }
+        return NSSize(width: width, height: min(560, max(360, ceil(total))))
     }
     @objc private func toggleEnabled() { controller.setEnabled(enable.state == .on); refresh() }
     @objc private func changeDirection() { controller.setDirection(UInt8(direction.selectedSegment)) }

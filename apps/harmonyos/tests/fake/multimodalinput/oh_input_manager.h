@@ -32,6 +32,10 @@ inline void OH_Input_DestroyMouseEvent(Input_MouseEvent** e){std::lock_guard<std
 inline void OH_Input_SetMouseEventAction(Input_MouseEvent* e,int a){e->action=a;}
 inline void OH_Input_SetMouseEventGlobalX(Input_MouseEvent* e,int a){e->x=a;}
 inline void OH_Input_SetMouseEventGlobalY(Input_MouseEvent* e,int a){e->y=a;}
+inline void OH_Input_SetMouseEventDisplayX(Input_MouseEvent*,int){}
+inline void OH_Input_SetMouseEventDisplayY(Input_MouseEvent*,int){}
+inline void OH_Input_SetMouseEventActionTime(Input_MouseEvent*,int64_t){}
+inline void OH_Input_SetKeyEventActionTime(Input_KeyEvent*,int64_t){}
 inline void OH_Input_SetMouseEventButton(Input_MouseEvent* e,int a){e->button=a;}
 inline void OH_Input_SetMouseEventAxisType(Input_MouseEvent* e,int a){e->axis=a;}
 inline void OH_Input_SetMouseEventAxisValue(Input_MouseEvent* e,float a){e->value=a;}

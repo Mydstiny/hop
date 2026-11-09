@@ -2,9 +2,11 @@
 #include "protocol.h"
 #include "generated/keymap.h"
 #include <multimodalinput/oh_input_manager.h>
+#include <hilog/log.h>
 #include <atomic>
 #include <set>
 #include <cmath>
+#include <time.h>
 
 namespace hop {
 // Only RequestAuthorization runs on UI; every event and release is on the ordered network worker.
@@ -16,18 +18,28 @@ class Injector {
     inline static std::atomic<int> status_{UNAUTHORIZED};
     static void Authorized(Input_InjectionStatus s) { status_.store(int(s)); }
     static int32_t ButtonCode(int b) { static const int32_t codes[]={-1,MOUSE_BUTTON_LEFT,MOUSE_BUTTON_RIGHT,MOUSE_BUTTON_MIDDLE,MOUSE_BUTTON_BACK,MOUSE_BUTTON_FORWARD}; return codes[b]; }
+    static int64_t ActionTime(){timespec ts{};clock_gettime(CLOCK_MONOTONIC,&ts);return int64_t(ts.tv_sec)*1000000+ts.tv_nsec/1000;}
     bool Mouse(int action,int button=MOUSE_BUTTON_NONE,int axis=0,float value=0) {
         Input_MouseEvent* e=OH_Input_CreateMouseEvent(); if(!e) return false;
-        OH_Input_SetMouseEventAction(e,action); OH_Input_SetMouseEventGlobalX(e,x_);OH_Input_SetMouseEventGlobalY(e,y_);
+        // This PC returns 401 when a global coordinate is 0: the service treats 0 as unset.
+        int gx=x_<=0?1:x_, gy=y_<=0?1:y_;
+        if(width_>1&&gx>=width_)gx=width_-1; if(height_>1&&gy>=height_)gy=height_-1;
+        OH_Input_SetMouseEventAction(e,action);
+        OH_Input_SetMouseEventGlobalX(e,gx);OH_Input_SetMouseEventGlobalY(e,gy);
+        OH_Input_SetMouseEventDisplayX(e,gx);OH_Input_SetMouseEventDisplayY(e,gy);
+        OH_Input_SetMouseEventActionTime(e,ActionTime());
         // SDK has no pressed-buttons mask setter. A MOVE carries a held button and service maintains ordered downs/ups.
         if(action==MOUSE_ACTION_MOVE&&button==MOUSE_BUTTON_NONE) for(int b=1;b<=5;++b) if(buttons_&(1<<(b-1))) {button=ButtonCode(b);break;}
         OH_Input_SetMouseEventButton(e,button);
         if(action>=MOUSE_ACTION_AXIS_BEGIN) {OH_Input_SetMouseEventAxisType(e,axis);OH_Input_SetMouseEventAxisValue(e,value);}
-        int result=OH_Input_InjectMouseEventGlobal(e);OH_Input_DestroyMouseEvent(&e);return result==INPUT_SUCCESS;
+        int result=OH_Input_InjectMouseEventGlobal(e);OH_Input_DestroyMouseEvent(&e);
+        if(result!=INPUT_SUCCESS) OH_LOG_Print(LOG_APP, LOG_ERROR, 0x0000, "Hop", "mouse inject %{public}d action %{public}d x %{public}d y %{public}d", result, action, x_, y_);
+        return result==INPUT_SUCCESS;
     }
     bool RawKey(int32_t code,bool down) {
         Input_KeyEvent* e=OH_Input_CreateKeyEvent();if(!e)return false;
         OH_Input_SetKeyEventKeyCode(e,code);OH_Input_SetKeyEventAction(e,down?KEY_ACTION_DOWN:KEY_ACTION_UP);
+        OH_Input_SetKeyEventActionTime(e,ActionTime());
         int result=OH_Input_InjectKeyEvent(e);OH_Input_DestroyKeyEvent(&e);return result==INPUT_SUCCESS;
     }
     bool SetKey(int32_t code,bool down,bool repeat=false) {
@@ -58,10 +70,11 @@ public:
         static constexpr uint16_t mac[]={56,60,59,62,58,61,55,54};
         for(int i=0;i<8;++i)if(!SetKey(MapMacKey(mac[i]),mask&(1<<i)))return false;
         int32_t lock=0;
-        if(OH_Input_GetFunctionKeyState(1,&lock)!=INPUT_SUCCESS)return false;
-        if(!capsKnown_){capsKnown_=true;originalCaps_=bool(lock);}
-        currentCaps_=bool(lock);bool wanted=mask&256;
-        if(currentCaps_!=wanted){if(!SetKey(MapMacKey(57),true))return false;currentCaps_=wanted;if(!SetKey(MapMacKey(57),false))return false;}
+        if(OH_Input_GetFunctionKeyState(1,&lock)==INPUT_SUCCESS) {
+            if(!capsKnown_){capsKnown_=true;originalCaps_=bool(lock);}
+            currentCaps_=bool(lock);bool wanted=mask&256;
+            if(currentCaps_!=wanted){if(!SetKey(MapMacKey(57),true))return false;currentCaps_=wanted;if(!SetKey(MapMacKey(57),false))return false;}
+        }
         return true;
     }
     bool Buttons(uint16_t mask) {

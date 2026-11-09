@@ -46,7 +46,7 @@ private final class MemoryPopoverModel: PopoverModel {
         root.layoutSubtreeIfNeeded()
         expect(root.bounds.width == 360, "\(name): fixed native panel width")
         expect(root.bounds.height == controller.preferredContentSize.height, "\(name): content/preferred size agreement")
-        expect(root.bounds.height >= 360 && root.bounds.height < 1600, "\(name): finite content-derived height")
+        expect(root.bounds.height >= 360 && root.bounds.height <= 640, "\(name): menu height, not a full-screen column")
         expect(root.window == nil, "\(name): no main/popover window created for offscreen test")
         guard let stack = descendants(root).compactMap({ $0 as? NSStackView }).first else { fatalError("Missing production NSStackView") }
         var previous: NSRect?
