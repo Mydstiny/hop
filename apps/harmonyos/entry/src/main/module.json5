@@ -20,6 +20,8 @@
         "startWindowIcon": "$media:app_icon",
         "startWindowBackground": "$color:start_window_background",
         "exported": true,
+        "excludeFromDock": true,
+        "removeMissionAfterTerminate": true,
         "backgroundModes": ["taskKeeping"],
         "metadata": [{ "name": "enable.remove.starting.window", "value": "true" }],
         "skills": [

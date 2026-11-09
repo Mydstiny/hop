@@ -11,6 +11,7 @@ import { HopService } from '../HopService';
 export default class EntryAbility extends UIAbility {
   private icons?: statusBarManager.StatusBarIcon;
   private starting: boolean = false;
+  private hiding: boolean = false;
   private windowReady: boolean = false;
   private trayReady: boolean = false;
   onWindowStageCreate(stage: window.WindowStage): void {
@@ -31,7 +32,21 @@ export default class EntryAbility extends UIAbility {
     if (!HopService.instance.view.background) {
       this.start().catch((error: Error) => { HopService.instance.view.message = String(error); });
     } else {
-      this.context.moveAbilityToBackground().catch(() => {});
+      this.retreat().catch(() => {});
+    }
+  }
+  // PC/2-in-1 rejects moveAbilityToBackground (16000061). hideAbility is the
+  // supported call, and only after the status-bar icon exists.
+  private async retreat(): Promise<void> {
+    if (this.hiding || !this.trayReady) { return; }
+    this.hiding = true;
+    try {
+      await this.context.hideAbility();
+      hilog.info(0x0000, 'Hop', 'Main ability hidden after statusbar registration');
+    } catch (error) {
+      hilog.warn(0x0000, 'Hop', 'Hide ability unavailable: %{public}s', String(error));
+    } finally {
+      this.hiding = false;
     }
   }
   private async icon(light: boolean): Promise<image.PixelMap> {
@@ -71,7 +86,7 @@ export default class EntryAbility extends UIAbility {
         await new Promise<void>((resolve, reject) => {
           statusBarManager.addToStatusBar(this.context, {
             icons: icons,
-            quickOperation: { title: 'Hop', height: 620, abilityName: 'HopStatusBarAbility', moduleName: 'entry' },
+            quickOperation: { title: 'Hop', height: 420, abilityName: 'HopStatusBarAbility', moduleName: 'entry' },
             statusBarGroupMenu: [[
               { title: 'Disconnect', menuAction: { abilityName: 'EntryAbility', notifyOnly: true, menuCode: 'disconnect' } },
               { title: 'Quit Hop', menuAction: { abilityName: 'EntryAbility', notifyOnly: true, menuCode: 'quit' } }
@@ -122,15 +137,10 @@ export default class EntryAbility extends UIAbility {
       service.view.message = `Startup failed at ${phase}: ${problem.code || 0} ${problem.message || String(error)}`;
       hilog.error(0x0000, 'Hop', '%{public}s', service.view.message);
     } finally {
-      // A background transition failure must not leave the startup lock stuck forever.
       // Never display a main-window fallback, including errors.
-      try {
-        await this.context.moveAbilityToBackground();
-      } catch (error) {
-        hilog.warn(0x0000, 'Hop', 'Background transition unavailable: %{public}s', String(error));
-      } finally {
-        this.starting = false;
-      }
+      // Hide only after the status-bar icon exists; a failure must not stick the startup lock.
+      this.starting = false;
+      await this.retreat();
     }
   }
   private async quit(): Promise<void> {
