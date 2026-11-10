@@ -2,13 +2,13 @@
 
 Hop 在同一局域网内共享键盘和鼠标。键鼠接在主控电脑上，把鼠标推过屏幕边缘，就能操作旁边的电脑。设备直接连接，无需 Hop 账号或云服务。
 
-[查看版本与下载](https://github.com/Mydstiny/hop/releases) · [v1 使用说明](README.v1.md) · [English v1 guide](README.en.md)
+[下载 v2.0.0-rc.1 预览版](https://github.com/Mydstiny/hop/releases/tag/v2.0.0-rc.1)
 
 ![Hop 的空间布局界面。鸿蒙电脑位于 Mac 主屏下方，绿色边段表示鼠标可以往返的位置。](docs/media/screen-layout.png)
 
 ## 下载与支持范围
 
-公开稳定版 **v1.0.0** 支持一台 Mac 向一台 HarmonyOS PC 共享键鼠，使用 v1 局域网协议。预览版支持下表中的三个平台，配对和连接需使用同一代客户端。[下载 v2.0.0-rc.1 预览版](https://github.com/Mydstiny/hop/releases/tag/v2.0.0-rc.1)
+**v2.0.0-rc.1** 预览版支持下表中的三个平台。请在所有参与配对的电脑上使用同一版本。
 
 | 平台 | 预览版角色 | 安装文件与条件 |
 | --- | --- | --- |
