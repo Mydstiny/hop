@@ -8,11 +8,11 @@ Hop 在同一局域网内共享键盘和鼠标。键鼠接在主控电脑上，�
 
 ## 下载与支持范围
 
-公开稳定版 **v1.0.0** 支持一台 Mac 向一台 HarmonyOS PC 共享键鼠，使用 v1 局域网协议。**v2.0.0-rc.1** 是三端预览版，配对和连接需使用同一代客户端。公开下载以 [Releases](https://github.com/Mydstiny/hop/releases) 为准。
+公开稳定版 **v1.0.0** 支持一台 Mac 向一台 HarmonyOS PC 共享键鼠，使用 v1 局域网协议。预览版支持下表中的三个平台，配对和连接需使用同一代客户端。[下载 v2.0.0-rc.1 预览版](https://github.com/Mydstiny/hop/releases/tag/v2.0.0-rc.1)
 
 | 平台 | 预览版角色 | 安装文件与条件 |
 | --- | --- | --- |
-| macOS 14 或更新版本 | 共享键鼠、接收键鼠 | 通用 ZIP，包含 Apple 芯片和 Intel 架构。当前预览构建使用临时签名，Apple 公证待完成。 |
+| macOS 14 或更新版本 | 共享键鼠、接收键鼠 | 通用 DMG，包含 Apple 芯片和 Intel 架构。另有 ZIP 备用。当前预览构建使用临时签名，Apple 公证待完成。 |
 | Windows 10 x64（15063 或更新内部版本）、Windows 11 x64 | 共享键鼠、接收键鼠 | 面向当前用户的 EXE 安装程序。当前预览构建尚未做 Authenticode 签名。 |
 | HarmonyOS PC / 二合一，API 20+，arm64 | 接收键鼠 | 用户自行签名侧载的 HAP。有普通调试 Profile 时使用键鼠版，有剪贴板 ACL 的 Profile 时可使用完整版。 |
 
@@ -20,7 +20,7 @@ Hop 在同一局域网内共享键盘和鼠标。键鼠接在主控电脑上，�
 
 ## 安装和权限
 
-- **macOS。** 解压后把 `Hop.app` 移入「应用程序」。打开菜单栏的 Hop，在系统「隐私与安全性」中授予「辅助功能」和「输入监控」。按系统提示重开 Hop。下载的预览构建可能受 Gatekeeper 限制。[安装与权限](docs/INSTALL_MAC.md) · [Apple 的 Gatekeeper 说明](https://support.apple.com/en-us/102445)
+- **macOS。** 打开 DMG，把 Hop 拖到「应用程序」。使用 ZIP 时，解压后把 `Hop.app` 移入「应用程序」。打开菜单栏的 Hop，在系统「隐私与安全性」中授予「辅助功能」和「输入监控」。按系统提示重开 Hop。下载的预览构建可能受 Gatekeeper 限制。[安装与权限](docs/INSTALL_MAC.md) · [Apple 的 Gatekeeper 说明](https://support.apple.com/en-us/102445)
 - **Windows。** 运行 EXE 后从开始菜单打开 Hop，使用系统托盘里的 Hop 图标进入面板。局域网配对需允许电脑之间建立 TCP 连接。未签名构建可能触发 SmartScreen 提示或受到组织策略限制。[安装说明](apps/windows/installer/README.md) · [Microsoft 的 SmartScreen 说明](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation)
 - **HarmonyOS PC。** 为包名 `dev.hop.input` 配置包含目标设备的调试 Profile，签名后通过 DevEco 或 HDC 侧载。从顶栏打开 Hop，按提示允许键鼠控制和后台运行。带文本、图片同步的版本需要 Profile 包含 `ohos.permission.READ_PASTEBOARD`，并在系统中授予权限。[签名与侧载步骤](docs/INSTALL_HARMONYOS.md)
 

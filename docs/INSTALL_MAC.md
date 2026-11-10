@@ -4,7 +4,9 @@
 
 ## Hop 2.0 候选包
 
-`Hop-2.0.0-rc.1-macos-universal-adhoc.zip` 同时包含 Apple Silicon 和 Intel 的可执行代码，属于本地测试候选。它使用 ad-hoc 签名，尚未公证；正式的站外下载安装包需使用 [Developer ID Application 和 Apple 公证](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)。无需上 Mac App Store。
+打开预览版 DMG，将 Hop 拖到「应用程序」。也可以下载 ZIP，解压后将 `Hop.app` 移入「应用程序」。两种包均包含 Apple Silicon 和 Intel 的可执行代码。[下载预览版](https://github.com/Mydstiny/hop/releases/tag/v2.0.0-rc.1)
+
+预览版使用 ad-hoc 签名，尚未公证。正式的站外分发使用 Developer ID Application 签名和 Apple 公证。[Apple 公证说明](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)
 
 在菜单栏 Hop 的设置中切换「共享键鼠」或「接收键鼠」。首次配对时，两端核对完整指纹并分别确认。接收端可选择附近主机，或手动填写局域网地址和端口，v2 默认端口为 24891。在「空间布局」拖动电脑或用方向按钮贴合边缘。鼠标设置按设备保存。急停快捷键为 **Control + Option + Command + Esc**。
 
