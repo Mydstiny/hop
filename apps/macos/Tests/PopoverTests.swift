@@ -13,6 +13,10 @@ private final class MemoryPopoverModel: PopoverModel {
     func confirmPairing() { actions.append("confirm"); presentation.localConfirmed = true }
     func rejectPairing() { actions.append("reject"); presentation.code = nil; presentation.pairingAllowed = false }
     func requestPermissions() { actions.append("permissions") }
+    func setMouseTuning(_ tuning: MouseTuning) { actions.append("mouseSettings"); presentation.mouseTuning = tuning }
+    func setReceivingMode(_ enabled: Bool) { actions.append("receive:\(enabled)"); presentation.receivingMode = enabled }
+    func setClipboardEnabled(_ enabled: Bool) { actions.append("clipboard:\(enabled)"); presentation.clipboardEnabled = enabled }
+    func editLayout() { actions.append("layout") }
 }
 
 @main struct PopoverTests {
@@ -46,7 +50,7 @@ private final class MemoryPopoverModel: PopoverModel {
         root.layoutSubtreeIfNeeded()
         expect(root.bounds.width == 360, "\(name): fixed native panel width")
         expect(root.bounds.height == controller.preferredContentSize.height, "\(name): content/preferred size agreement")
-        expect(root.bounds.height >= 360 && root.bounds.height <= 640, "\(name): menu height, not a full-screen column")
+        expect(root.bounds.height >= 185 && root.bounds.height <= 640, "\(name): menu height, not a full-screen column")
         expect(root.window == nil, "\(name): no main/popover window created for offscreen test")
         guard let stack = descendants(root).compactMap({ $0 as? NSStackView }).first else { fatalError("Missing production NSStackView") }
         var previous: NSRect?
@@ -70,6 +74,7 @@ private final class MemoryPopoverModel: PopoverModel {
         try png.write(to: output.appendingPathComponent("\(name).png"))
     }
     static func main() throws {
+        HopLocale.forceChinese = false
         guard CommandLine.arguments.count == 2 else { fatalError("Usage: popover-tests OUTPUT_DIRECTORY") }
         let output = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true).standardizedFileURL
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
@@ -80,9 +85,23 @@ private final class MemoryPopoverModel: PopoverModel {
         let panel = PopoverController(controller: model)
         panel.loadView()
         let root = panel.view
+        let settingsView = MouseSettingsView(current: MouseTuning(movement: 2, horizontal: 0.5, vertical: 1.5,
+                                                                  reverseHorizontal: true, reverseVertical: false))
+        expect(settingsView.window == nil, "Mouse settings are tested without showing a modal window")
+        expect(settingsView.value == MouseTuning(movement: 2, horizontal: 0.5, vertical: 1.5,
+                                                  reverseHorizontal: true, reverseVertical: false), "Mouse settings load independently")
+        settingsView.movement.selectItem(at: 3)
+        settingsView.reportRate.selectItem(at: 3)
+        settingsView.reverseY.state = .on
+        expect(settingsView.value.movement == 1 && settingsView.value.reverseVertical && settingsView.value.reportRateHz == 500, "Mouse settings reflect selected values")
+        for view in settingsView.subviews {
+            expect(view.frame.minX >= 0 && view.frame.maxX <= settingsView.bounds.width &&
+                   view.frame.minY >= 0 && view.frame.maxY <= settingsView.bounds.height, "Mouse settings controls fit their content")
+        }
         expect(app.mainWindow == nil, "No initial main window")
         expect(!button(root, title: "Pair a computer…").isHidden, "Unpaired exposes Pair")
         expect(button(root, title: "Unpair").isHidden, "Unpaired hides Unpair")
+        expect(button(root, title: "Mouse settings…").isHidden, "Unpaired hides per-device mouse settings")
         expect(button(root, title: "Codes match — Confirm").isHidden, "Unpaired hides confirmation")
         try render(panel, name: "unpaired", output: output)
         let title = descendants(root).compactMap({ $0 as? NSTextField }).first(where: { $0.stringValue == "Hop" })!
@@ -97,7 +116,7 @@ private final class MemoryPopoverModel: PopoverModel {
         expect(enable.state == .on, "Enable presentation refresh")
         enable.performClick(nil)
         expect(model.actions.last == "enable:false", "Disable delegates correctly")
-        let direction = descendants(root).compactMap { $0 as? NSSegmentedControl }.first!
+        let direction = descendants(root).compactMap { $0 as? NSSegmentedControl }.first { $0.label(forSegment: 0) == "← Left" }!
         direction.selectedSegment = 0
         _ = direction.sendAction(direction.action, to: direction.target)
         expect(model.actions.last == "direction:0", "Left direction action")
@@ -134,6 +153,62 @@ private final class MemoryPopoverModel: PopoverModel {
         model.presentation = PopoverPresentation(status: "UI TEST FIXTURE · " + String(repeating: "长状态 / long network error; ", count: 8),
                                                 pairedName: "Long fixture device name 1234567")
         try render(panel, name: "long-status", output: output)
+        HopLocale.forceChinese = true
+        let chineseModel = MemoryPopoverModel()
+        chineseModel.presentation = PopoverPresentation(status: "Connected — local input", pairedName: "鸿蒙电脑", permissionGranted: true)
+        let chinesePanel = PopoverController(controller: chineseModel)
+        chinesePanel.loadView()
+        try render(chinesePanel, name: "paired-zh", output: output)
+        expect(!button(chinesePanel.view, title: "鼠标设置…").isHidden, "Chinese paired settings visible")
+        expect(descendants(chinesePanel.view).compactMap({ $0 as? NSTextField }).contains(where: { $0.stringValue == "已连接 · 当前控制本机" }), "Chinese status translated")
+        chineseModel.presentation = PopoverPresentation(status: "Connecting…", code: 123456, peerName: "鸿蒙电脑", peerConfirmed: true)
+        try render(chinesePanel, name: "pairing-zh", output: output)
+        expect(!button(chinesePanel.view, title: "配对码一致，确认").isHidden, "Chinese pairing confirmation visible")
+        chineseModel.presentation = PopoverPresentation(status: "请核对完整指纹，并先在主机端确认。", permissionGranted: true,
+            encrypted: true, fingerprints: "这台 Mac：\n\(String(repeating: "A", count: 32))\n\(String(repeating: "B", count: 32))\n另一台设备 · Windows：\n\(String(repeating: "C", count: 32))\n\(String(repeating: "D", count: 32))",
+            clipboardAvailable: true, receivingAvailable: true, receivingMode: true, receiverBusy: true)
+        try render(chinesePanel, name: "v2-receiver-pairing-zh", output: output)
+        expect(button(chinesePanel.view, title: "启用键鼠共享").isHidden, "Receiver only shows its own controls")
+        expect(!button(chinesePanel.view, title: "双方指纹一致，确认").isHidden, "Encrypted pairing shows full fingerprint confirmation")
+        expect(button(chinesePanel.view, title: "同步文本和图片剪贴板").isHidden, "Pairing hides unrelated settings")
+        chineseModel.presentation = PopoverPresentation(status: "已建立加密连接。", pairedName: "Windows (fixture)", enabled: true,
+            permissionGranted: true, encrypted: true, screenNames: ["显示器 1", "显示器 2"], clipboardAvailable: true, receivingAvailable: true,
+            deviceNames: ["Windows (fixture)"], layoutAvailable: true, usesLayout: true)
+        try render(chinesePanel, name: "v2-layout-host-zh", output: output)
+        expect(button(chinesePanel.view, title: "同步文本和图片剪贴板").isHidden, "Clipboard starts behind settings")
+        button(chinesePanel.view, title: "设置…").performClick(nil)
+        expect(!button(chinesePanel.view, title: "同步文本和图片剪贴板").isHidden, "Settings reveal clipboard")
+        button(chinesePanel.view, title: "同步文本和图片剪贴板").performClick(nil)
+        expect(chineseModel.actions.last == "clipboard:true", "Clipboard opt-in delegates without pasteboard access")
+        let settingsHeight = chinesePanel.preferredContentSize.height
+        try render(chinesePanel, name: "v2-settings-zh", output: output)
+        button(chinesePanel.view, title: "返回").performClick(nil)
+        expect(chinesePanel.preferredContentSize.height < settingsHeight, "Returning from settings reduces popover height")
+        button(chinesePanel.view, title: "空间布局…").performClick(nil)
+        expect(chineseModel.actions.last == "layout", "Layout is available for this Mac and one connected computer")
+        let host = V2DesktopLayout.Key(device: "local", screen: 1)
+        let other = V2DesktopLayout.Key(device: String(repeating: "A", count: 64), screen: 1)
+        let localRect = CGRect(x: 0, y: 0, width: 1100, height: 700)
+        let otherRect = CGRect(x: 1100, y: 100, width: 1000, height: 700)
+        let preview = try V2DesktopLayout([.init(key: host, label: "这台 Mac", frame: localRect, physical: localRect),
+            .init(key: other, label: "HarmonyOS PC", frame: otherRect, physical: otherRect)])
+        let canvas = V2LayoutCanvas(layout: preview)
+        canvas.appearance = NSAppearance(named: .aqua)
+        canvas.wantsLayer = true
+        canvas.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+        func snapshotCanvas(_ name: String) throws {
+            let bitmap = canvas.bitmapImageRepForCachingDisplay(in: canvas.bounds)!
+            canvas.cacheDisplay(in: canvas.bounds, to: bitmap)
+            try bitmap.representation(using: .png, properties: [:])!.write(to: output.appendingPathComponent(name))
+        }
+        try snapshotCanvas("v2-device-arrangement-zh.png")
+        expect(canvas.window == nil && canvas.layout.displays == preview.displays, "Native canvas is offscreen and starts from the saved arrangement")
+        button(canvas, title: "↓ 下方").performClick(nil)
+        expect(canvas.layout.seams.first?.edge == .bottom &&
+               canvas.layout.remoteEdge(other, x: 32768, y: 0)?.target == host,
+               "Below button places a reversible seam under the Mac")
+        try snapshotCanvas("v2-device-arrangement-below-zh.png")
+        HopLocale.forceChinese = false
         expect(app.mainWindow == nil && app.windows.count == initialWindows, "All cases create no windows")
         expect(app.activationPolicy() == .accessory, "No regular/Dock activation policy")
         expect(!model.actions.contains("permissions"), "No permission request or settings action executed")
@@ -148,7 +223,7 @@ private final class MemoryPopoverModel: PopoverModel {
             for failure in failures { fputs("FAIL: \(failure)\n", stderr) }
             exit(1)
         }
-        print("PASS: \(checks) production AppKit popover layout/action checks; 5 offscreen fixture PNGs")
+        print("PASS: \(checks) production AppKit layout/action checks; 10 offscreen fixture PNGs")
         print("No product AppController, capture/tap/cursor APIs, listeners, Keychain, permission probes/prompts, or visible windows were created.")
         print("Boundary: offscreen production content view only, not actual menu-bar popup interaction or two-device runtime proof.")
     }

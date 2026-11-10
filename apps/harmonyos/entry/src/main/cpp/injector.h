@@ -1,6 +1,7 @@
 #pragma once
 #include "protocol.h"
 #include "generated/keymap.h"
+#include "generated/hid_keymap.h"
 #include <multimodalinput/oh_input_manager.h>
 #include <hilog/log.h>
 #include <atomic>
@@ -13,7 +14,8 @@ namespace hop {
 class Injector {
     std::set<int32_t> keys_;
     uint16_t buttons_=0; int x_=0,y_=0,width_=1,height_=1;
-    bool capsKnown_=false,originalCaps_=false,currentCaps_=false;
+    int32_t displayId_=-1, originX_=0, originY_=0;
+    bool capsKnown_=false,originalCaps_=false,currentCaps_=false,lastCapsQueryOK_=false;
     bool axisActive_[2]={false,false};
     inline static std::atomic<int> status_{UNAUTHORIZED};
     static void Authorized(Input_InjectionStatus s) { status_.store(int(s)); }
@@ -21,12 +23,22 @@ class Injector {
     static int64_t ActionTime(){timespec ts{};clock_gettime(CLOCK_MONOTONIC,&ts);return int64_t(ts.tv_sec)*1000000+ts.tv_nsec/1000;}
     bool Mouse(int action,int button=MOUSE_BUTTON_NONE,int axis=0,float value=0) {
         Input_MouseEvent* e=OH_Input_CreateMouseEvent(); if(!e) return false;
-        // This PC returns 401 when a global coordinate is 0: the service treats 0 as unset.
-        int gx=x_<=0?1:x_, gy=y_<=0?1:y_;
-        if(width_>1&&gx>=width_)gx=width_-1; if(height_>1&&gy>=height_)gy=height_-1;
+        // The primary-only legacy path keeps its known zero-coordinate
+        // workaround. In v2, negative global coordinates are valid.
+        int dx=x_, dy=y_;
+        if(displayId_<0) {
+            dx=x_<=0?1:x_;dy=y_<=0?1:y_;
+            if(width_>1&&dx>=width_)dx=width_-1;if(height_>1&&dy>=height_)dy=height_-1;
+        } else {
+            // Some PCs reject a global axis equal to zero as unset. Only
+            // nudge inside this display, never across into another target.
+            if(originX_+dx==0 && width_>1)dx+=(dx+1<width_?1:-1);
+            if(originY_+dy==0 && height_>1)dy+=(dy+1<height_?1:-1);
+            OH_Input_SetMouseEventDisplayId(e,displayId_);
+        }
         OH_Input_SetMouseEventAction(e,action);
-        OH_Input_SetMouseEventGlobalX(e,gx);OH_Input_SetMouseEventGlobalY(e,gy);
-        OH_Input_SetMouseEventDisplayX(e,gx);OH_Input_SetMouseEventDisplayY(e,gy);
+        OH_Input_SetMouseEventGlobalX(e,originX_+dx);OH_Input_SetMouseEventGlobalY(e,originY_+dy);
+        OH_Input_SetMouseEventDisplayX(e,dx);OH_Input_SetMouseEventDisplayY(e,dy);
         OH_Input_SetMouseEventActionTime(e,ActionTime());
         // SDK has no pressed-buttons mask setter. A MOVE carries a held button and service maintains ordered downs/ups.
         if(action==MOUSE_ACTION_MOVE&&button==MOUSE_BUTTON_NONE) for(int b=1;b<=5;++b) if(buttons_&(1<<(b-1))) {button=ButtonCode(b);break;}
@@ -38,6 +50,7 @@ class Injector {
     }
     bool RawKey(int32_t code,bool down) {
         Input_KeyEvent* e=OH_Input_CreateKeyEvent();if(!e)return false;
+        if(displayId_>=0)OH_Input_SetKeyEventDisplayId(e,displayId_);
         OH_Input_SetKeyEventKeyCode(e,code);OH_Input_SetKeyEventAction(e,down?KEY_ACTION_DOWN:KEY_ACTION_UP);
         OH_Input_SetKeyEventActionTime(e,ActionTime());
         int result=OH_Input_InjectKeyEvent(e);OH_Input_DestroyKeyEvent(&e);return result==INPUT_SUCCESS;
@@ -64,17 +77,23 @@ public:
         status_=int(s); return int(s);
     }
     void Dimensions(int width,int height) {width_=width;height_=height;}
+    bool TargetDisplay(int32_t id,int32_t x,int32_t y,int width,int height) {
+        if(!keys_.empty()||buttons_||axisActive_[0]||axisActive_[1]||capsKnown_)return false;
+        displayId_=id;originX_=x;originY_=y;Dimensions(width,height);
+        return true;
+    }
     int x()const{return x_;} int y()const{return y_;} int width()const{return width_;} int height()const{return height_;}
     bool Position(uint16_t x,uint16_t y) {x_=int(std::llround(double(x)*(width_-1)/65535.0));y_=int(std::llround(double(y)*(height_-1)/65535.0));return Mouse(MOUSE_ACTION_MOVE);}
     bool Modifiers(uint16_t mask) {
         static constexpr uint16_t mac[]={56,60,59,62,58,61,55,54};
         for(int i=0;i<8;++i)if(!SetKey(MapMacKey(mac[i]),mask&(1<<i)))return false;
         int32_t lock=0;
-        if(OH_Input_GetFunctionKeyState(1,&lock)==INPUT_SUCCESS) {
+        lastCapsQueryOK_=OH_Input_GetFunctionKeyState(1,&lock)==INPUT_SUCCESS;
+        if(lastCapsQueryOK_) {
             if(!capsKnown_){capsKnown_=true;originalCaps_=bool(lock);}
             currentCaps_=bool(lock);bool wanted=mask&256;
             if(currentCaps_!=wanted){if(!SetKey(MapMacKey(57),true))return false;currentCaps_=wanted;if(!SetKey(MapMacKey(57),false))return false;}
-        }
+        } else capsKnown_=false; // no reliable state to restore if the platform cannot query it
         return true;
     }
     bool Buttons(uint16_t mask) {
@@ -86,13 +105,40 @@ public:
     }
     bool Key(uint16_t mac,uint16_t modifiers,bool down,bool repeat) {
         if(!Modifiers(modifiers))return false;
-        if(mac==57)return true; // CapsLock is synchronized as a lock, never held.
+        if(mac==57) {
+            if(lastCapsQueryOK_)return true; // synchronized above as a latch
+            // On some PCs there is no physical keyboard, so the SDK state query
+            // fails. Mac sends one flagsChanged per latch transition; relay that
+            // transition as a balanced tap instead of silently dropping it.
+            const int code=MapMacKey(57);
+            return SetKey(code,true)&&SetKey(code,false);
+        }
         int code=MapMacKey(mac);return code<0 ? true : SetKey(code,down,repeat);
+    }
+    // v2 uses USB HID keyboard-page usage rather than a Mac virtual code.
+    // Call only after session, focus and capability checks succeed.
+    bool KeyHid(uint16_t usage,uint16_t modifiers,bool down,bool repeat) {
+        if(!Modifiers(modifiers))return false;
+        if(usage==0x39) {
+            if(lastCapsQueryOK_ || !down)return true;
+            // HID has a separate up event. Toggle once on down when the SDK
+            // cannot query the lock state, then ignore the corresponding up.
+            const int code=MapHidKey(usage);
+            return code>=0 && SetKey(code,true) && SetKey(code,false);
+        }
+        int code=MapHidKey(usage);return code<0 ? true : SetKey(code,down,repeat);
     }
     bool Wheel(int32_t dx,int32_t dy) {
         // Protocol positive Y is down; SDK positive vertical is forward/up. Horizontal positive is right.
-        for(int axis=0;axis<2;++axis){int32_t v=axis==0?dy:dx;if(!v)continue;float step=float(v)/120.0f*(axis==0?-1.0f:1.0f);
-            if(!Mouse(MOUSE_ACTION_AXIS_BEGIN,MOUSE_BUTTON_NONE,axis,0))return false;
+        // One physical wheel detent carries 120 protocol units. HarmonyOS PC's
+        // axis is consumed on a finer scale; a 1.0 axis value produced only a
+        // barely visible move on the user's device. Keep a conservative cap so
+        // an abnormal packet cannot cause an uncontrolled enormous jump.
+        for(int axis=0;axis<2;++axis){int32_t v=axis==0?dy:dx;if(!v)continue;
+            float step=std::fmax(-1000.0f,std::fmin(1000.0f,float(v)/120.0f*22.5f*(axis==0?-1.0f:1.0f)));
+            // The first hardware axis event carries the scroll value on BEGIN;
+            // a zero-valued BEGIN can be ignored by some PC applications.
+            if(!Mouse(MOUSE_ACTION_AXIS_BEGIN,MOUSE_BUTTON_NONE,axis,step))return false;
             axisActive_[axis]=true;
             bool updated=Mouse(MOUSE_ACTION_AXIS_UPDATE,MOUSE_BUTTON_NONE,axis,step);
             bool ended=Mouse(MOUSE_ACTION_AXIS_END,MOUSE_BUTTON_NONE,axis,0);
@@ -100,12 +146,27 @@ public:
             if(!updated||!ended)return false;
         }return true;
     }
-    void Release() noexcept {
-        // Best effort even if authorization was revoked: never clear a down without attempting its release.
-        for(int axis=0;axis<2;++axis)if(axisActive_[axis]){Mouse(MOUSE_ACTION_AXIS_END,MOUSE_BUTTON_NONE,axis,0);axisActive_[axis]=false;}
-        for(int code:keys_)RawKey(code,false);keys_.clear();
-        for(int b=1;b<=5;++b)if(buttons_&(1<<(b-1)))Mouse(MOUSE_ACTION_BUTTON_UP,ButtonCode(b));buttons_=0;
-        if(capsKnown_&&currentCaps_!=originalCaps_){RawKey(MapMacKey(57),true);RawKey(MapMacKey(57),false);}capsKnown_=false;
+    bool Release() noexcept {
+        // Keep uncertain downs so a later best-effort retry can release them.
+        // A failed release must never be acknowledged as successful by v2.
+        bool ok=true;
+        for(int axis=0;axis<2;++axis)if(axisActive_[axis]) {
+            if(Mouse(MOUSE_ACTION_AXIS_END,MOUSE_BUTTON_NONE,axis,0))axisActive_[axis]=false;else ok=false;
+        }
+        for(auto it=keys_.begin();it!=keys_.end();) {
+            if(RawKey(*it,false))it=keys_.erase(it);else {ok=false;++it;}
+        }
+        for(int b=1;b<=5;++b)if(buttons_&(1<<(b-1))) {
+            if(Mouse(MOUSE_ACTION_BUTTON_UP,ButtonCode(b)))buttons_&=uint16_t(~(1<<(b-1)));else ok=false;
+        }
+        if(capsKnown_&&currentCaps_!=originalCaps_) {
+            // Always attempt the balancing up even if the down failed. A failed
+            // toggle is reported; querying again is required before any retry.
+            bool down=RawKey(MapMacKey(57),true),up=RawKey(MapMacKey(57),false);
+            if(!down||!up)ok=false;
+        }
+        capsKnown_=false;
+        return ok;
     }
 };
 } // namespace hop

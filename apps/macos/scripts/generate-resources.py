@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Generate the macOS bundle resource from the sole canonical keymap, never a second map."""
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 source = root.parents[1] / "protocol" / "keymap.json"
+subprocess.run([sys.executable, str(root.parents[1] / "tools/generate_hid_keymap.py"), "--check"], check=True)
 value = json.loads(source.read_text(encoding="utf-8"))
 assert value["version"] == 1
 assert len({key["mac"] for key in value["keys"]}) == len(value["keys"])

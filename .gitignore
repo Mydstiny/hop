@@ -14,6 +14,9 @@ __pycache__/
 **/*.p12
 apps/macos/signing/
 apps/harmonyos/signing.local/
+apps/linux/dev-resume.md
+apps/windows/dev-resume.md
+docs/plans/2026-11-10-safe-pause.md
 **/.clangd
 **/.clang-tidy
 **/*.p7b
@@ -21,6 +24,7 @@ apps/harmonyos/signing.local/
 **/*.keystore
 **/*.mobileprovision
 **/*-signed.hap
+apps/harmonyos/entry/src/main/resources/rawfile/hop-licenses/
 **/oh-package-lock.json5
 artifacts/private/
 artifacts/test-build/

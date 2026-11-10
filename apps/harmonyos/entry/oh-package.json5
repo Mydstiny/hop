@@ -4,6 +4,7 @@
   "description": "Hop PC client",
   "main": "",
   "dependencies": {
-    "libhop.so": "file:./src/main/cpp/types/libhop"
+    "libhop.so": "file:./src/main/cpp/types/libhop",
+    "libhopv2.so": "file:./src/main/cpp/types/libhopv2"
   }
 }

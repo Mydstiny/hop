@@ -97,7 +97,7 @@ Mac→client，payload `mac_keycode:u16, modifiers:u16, action:u8, repeat:u8`（
 
 Mac：DISCONNECTED → HANDSHAKE → LOCAL → ENTER_PENDING → REMOTE → LOCAL。任何状态都能恢复到LOCAL/DISCONNECTED。断连、协议错误、3秒超时、CGEventTap被禁用、失去辅助功能、显示器变化、睡眠、用户禁用、退出、Ctrl+Opt+Cmd+Esc触发**同一个幂等的同步恢复入口**：先取消吞输入/清pending，然后关联鼠标、显示光标、warp边缘内侧；最后才发LEAVE/BYE/改UI。急停事件本身不发送给远端。捕获回调异常优先透传，不得卡网络。无授权时绝不隐藏/冻结。
 
-client：DISCONNECTED → AUTHORIZING/HANDSHAKE → LOCAL → REMOTE → LEAVING → LOCAL。授权撤销/注入错误/断连/离开释放实际注入的pressed集合；拒绝旧epoch和非REMOTE输入，不得根据任意旧MOVE注入。注入失败时立即断连，不用旁路。只能单线程有序处理输入，TCP读写在非UI线程；回调通过NAPI threadsafe function安全送UI。禁止在未授权前尝试注入。
+client：DISCONNECTED → AUTHORIZING/HANDSHAKE → LOCAL → REMOTE → LEAVING → LOCAL。授权撤销/注入错误/断连/离开释放实际注入的pressed集合；拒绝旧epoch和非REMOTE输入，不得根据任意旧MOVE注入。注入失败时立即断连，不用旁路。只能单线程有序处理输入，TCP读写在非UI线程；回调通过NAPI threadsafe function安全送UI。禁止在未授权前尝试注入。接收循环在每次 socket 读取批次之前检查系统授权，一个批次最多读取 4096 字节；该检查不逐帧重复，系统仍对实际注入执行权限控制，撤权与读取批次之间的竞争及设备效果需真机验证。
 
 Mac远程期间仅全局键鼠物理事件被转发并吞掉，系统关键异常必须恢复；未支持键可以选择不转发但不得让本地组合键误动作（急停除外）。退出远端前先释放远端，再按平台安全方式让本地重新获得后续输入，不能凭空给本地应用制造点击/键盘动作。断电/进程崩溃无法运行finally，需验证系统对CGEventTap/光标关联的进程清理行为，列为真机验收项目，不以源码证明替代。
 

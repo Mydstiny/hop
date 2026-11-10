@@ -1,5 +1,13 @@
 # HarmonyOS PC 构建、调试签名与安装 / Build, sign, install
 
+## Hop 2.0 候选包说明
+
+三端预览版使用加密 v2 协议。为包名 `dev.hop.input` 配置包含本机的调试 Profile，再对选中的 HAP 签名。普通调试 Profile 对应 `Hop-2.0.0-rc.1-harmonyos-input-only-unsigned.hap`。包含剪贴板 ACL 的 Profile 对应 `Hop-2.0.0-rc.1-harmonyos-unsigned.hap`。安装后按系统提示允许键鼠控制和后台运行。主控端打开配对窗口，鸿蒙顶栏选择主控电脑或输入局域网地址，两端核对并确认完整指纹。
+
+鸿蒙和 Mac 默认开启文本和图片剪贴板同步，可以在 Hop 设置里关闭。鸿蒙需要系统授权。如果设置页提示授权，完成后重新连接。`ohos.permission.READ_PASTEBOARD` 属于受限权限，侧载包能否读取剪贴板取决于签名 Profile 和设备设置。[华为剪贴板权限指引](https://developer.huawei.com/consumer/cn/doc/HarmonyOS-Guides/get-pastedata-permission-guidelines/)
+
+以下保留 v1 的签名、侧载和故障排查说明。
+
 ## 支持条件与验证边界
 
 - 目标是**鸿蒙电脑 / 2-in-1**，HarmonyOS6 / API20+；不支持手机/平板，不以无障碍或ACL替代系统注入授权。

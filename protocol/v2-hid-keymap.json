@@ -1,0 +1,446 @@
+{
+  "version": 1,
+  "description": "USB HID keyboard page 0x07 to physical Mac symbol; special keys omitted where unverified",
+  "keys": [
+    {
+      "mac_symbol": "kVK_ANSI_A",
+      "hid_usage": 4
+    },
+    {
+      "mac_symbol": "kVK_ANSI_S",
+      "hid_usage": 22
+    },
+    {
+      "mac_symbol": "kVK_ANSI_D",
+      "hid_usage": 7
+    },
+    {
+      "mac_symbol": "kVK_ANSI_F",
+      "hid_usage": 9
+    },
+    {
+      "mac_symbol": "kVK_ANSI_H",
+      "hid_usage": 11
+    },
+    {
+      "mac_symbol": "kVK_ANSI_G",
+      "hid_usage": 10
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Z",
+      "hid_usage": 29
+    },
+    {
+      "mac_symbol": "kVK_ANSI_X",
+      "hid_usage": 27
+    },
+    {
+      "mac_symbol": "kVK_ANSI_C",
+      "hid_usage": 6
+    },
+    {
+      "mac_symbol": "kVK_ANSI_V",
+      "hid_usage": 25
+    },
+    {
+      "mac_symbol": "kVK_ISO_Section",
+      "hid_usage": 100
+    },
+    {
+      "mac_symbol": "kVK_ANSI_B",
+      "hid_usage": 5
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Q",
+      "hid_usage": 20
+    },
+    {
+      "mac_symbol": "kVK_ANSI_W",
+      "hid_usage": 26
+    },
+    {
+      "mac_symbol": "kVK_ANSI_E",
+      "hid_usage": 8
+    },
+    {
+      "mac_symbol": "kVK_ANSI_R",
+      "hid_usage": 21
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Y",
+      "hid_usage": 28
+    },
+    {
+      "mac_symbol": "kVK_ANSI_T",
+      "hid_usage": 23
+    },
+    {
+      "mac_symbol": "kVK_ANSI_1",
+      "hid_usage": 30
+    },
+    {
+      "mac_symbol": "kVK_ANSI_2",
+      "hid_usage": 31
+    },
+    {
+      "mac_symbol": "kVK_ANSI_3",
+      "hid_usage": 32
+    },
+    {
+      "mac_symbol": "kVK_ANSI_4",
+      "hid_usage": 33
+    },
+    {
+      "mac_symbol": "kVK_ANSI_6",
+      "hid_usage": 35
+    },
+    {
+      "mac_symbol": "kVK_ANSI_5",
+      "hid_usage": 34
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Equal",
+      "hid_usage": 46
+    },
+    {
+      "mac_symbol": "kVK_ANSI_9",
+      "hid_usage": 38
+    },
+    {
+      "mac_symbol": "kVK_ANSI_7",
+      "hid_usage": 36
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Minus",
+      "hid_usage": 45
+    },
+    {
+      "mac_symbol": "kVK_ANSI_8",
+      "hid_usage": 37
+    },
+    {
+      "mac_symbol": "kVK_ANSI_0",
+      "hid_usage": 39
+    },
+    {
+      "mac_symbol": "kVK_ANSI_RightBracket",
+      "hid_usage": 48
+    },
+    {
+      "mac_symbol": "kVK_ANSI_O",
+      "hid_usage": 18
+    },
+    {
+      "mac_symbol": "kVK_ANSI_U",
+      "hid_usage": 24
+    },
+    {
+      "mac_symbol": "kVK_ANSI_LeftBracket",
+      "hid_usage": 47
+    },
+    {
+      "mac_symbol": "kVK_ANSI_I",
+      "hid_usage": 12
+    },
+    {
+      "mac_symbol": "kVK_ANSI_P",
+      "hid_usage": 19
+    },
+    {
+      "mac_symbol": "kVK_Return",
+      "hid_usage": 40
+    },
+    {
+      "mac_symbol": "kVK_ANSI_L",
+      "hid_usage": 15
+    },
+    {
+      "mac_symbol": "kVK_ANSI_J",
+      "hid_usage": 13
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Quote",
+      "hid_usage": 52
+    },
+    {
+      "mac_symbol": "kVK_ANSI_K",
+      "hid_usage": 14
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Semicolon",
+      "hid_usage": 51
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Backslash",
+      "hid_usage": 49
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Comma",
+      "hid_usage": 54
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Slash",
+      "hid_usage": 56
+    },
+    {
+      "mac_symbol": "kVK_ANSI_N",
+      "hid_usage": 17
+    },
+    {
+      "mac_symbol": "kVK_ANSI_M",
+      "hid_usage": 16
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Period",
+      "hid_usage": 55
+    },
+    {
+      "mac_symbol": "kVK_Tab",
+      "hid_usage": 43
+    },
+    {
+      "mac_symbol": "kVK_Space",
+      "hid_usage": 44
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Grave",
+      "hid_usage": 53
+    },
+    {
+      "mac_symbol": "kVK_Delete",
+      "hid_usage": 42
+    },
+    {
+      "mac_symbol": "kVK_Escape",
+      "hid_usage": 41
+    },
+    {
+      "mac_symbol": "kVK_RightCommand",
+      "hid_usage": 231
+    },
+    {
+      "mac_symbol": "kVK_Command",
+      "hid_usage": 227
+    },
+    {
+      "mac_symbol": "kVK_Shift",
+      "hid_usage": 225
+    },
+    {
+      "mac_symbol": "kVK_CapsLock",
+      "hid_usage": 57
+    },
+    {
+      "mac_symbol": "kVK_Option",
+      "hid_usage": 226
+    },
+    {
+      "mac_symbol": "kVK_Control",
+      "hid_usage": 224
+    },
+    {
+      "mac_symbol": "kVK_RightShift",
+      "hid_usage": 229
+    },
+    {
+      "mac_symbol": "kVK_RightOption",
+      "hid_usage": 230
+    },
+    {
+      "mac_symbol": "kVK_RightControl",
+      "hid_usage": 228
+    },
+    {
+      "mac_symbol": "kVK_F17",
+      "hid_usage": 108
+    },
+    {
+      "mac_symbol": "kVK_ANSI_KeypadDecimal",
+      "hid_usage": 99
+    },
+    {
+      "mac_symbol": "kVK_ANSI_KeypadMultiply",
+      "hid_usage": 85
+    },
+    {
+      "mac_symbol": "kVK_ANSI_KeypadPlus",
+      "hid_usage": 87
+    },
+    {
+      "mac_symbol": "kVK_ANSI_KeypadDivide",
+      "hid_usage": 84
+    },
+    {
+      "mac_symbol": "kVK_ANSI_KeypadEnter",
+      "hid_usage": 88
+    },
+    {
+      "mac_symbol": "kVK_ANSI_KeypadMinus",
+      "hid_usage": 86
+    },
+    {
+      "mac_symbol": "kVK_F18",
+      "hid_usage": 109
+    },
+    {
+      "mac_symbol": "kVK_F19",
+      "hid_usage": 110
+    },
+    {
+      "mac_symbol": "kVK_ANSI_KeypadEquals",
+      "hid_usage": 103
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Keypad0",
+      "hid_usage": 98
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Keypad1",
+      "hid_usage": 89
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Keypad2",
+      "hid_usage": 90
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Keypad3",
+      "hid_usage": 91
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Keypad4",
+      "hid_usage": 92
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Keypad5",
+      "hid_usage": 93
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Keypad6",
+      "hid_usage": 94
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Keypad7",
+      "hid_usage": 95
+    },
+    {
+      "mac_symbol": "kVK_F20",
+      "hid_usage": 111
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Keypad8",
+      "hid_usage": 96
+    },
+    {
+      "mac_symbol": "kVK_ANSI_Keypad9",
+      "hid_usage": 97
+    },
+    {
+      "mac_symbol": "kVK_F5",
+      "hid_usage": 62
+    },
+    {
+      "mac_symbol": "kVK_F6",
+      "hid_usage": 63
+    },
+    {
+      "mac_symbol": "kVK_F7",
+      "hid_usage": 64
+    },
+    {
+      "mac_symbol": "kVK_F3",
+      "hid_usage": 60
+    },
+    {
+      "mac_symbol": "kVK_F8",
+      "hid_usage": 65
+    },
+    {
+      "mac_symbol": "kVK_F9",
+      "hid_usage": 66
+    },
+    {
+      "mac_symbol": "kVK_F11",
+      "hid_usage": 68
+    },
+    {
+      "mac_symbol": "kVK_F13",
+      "hid_usage": 104
+    },
+    {
+      "mac_symbol": "kVK_F16",
+      "hid_usage": 107
+    },
+    {
+      "mac_symbol": "kVK_F14",
+      "hid_usage": 105
+    },
+    {
+      "mac_symbol": "kVK_F10",
+      "hid_usage": 67
+    },
+    {
+      "mac_symbol": "kVK_ContextualMenu",
+      "hid_usage": 101
+    },
+    {
+      "mac_symbol": "kVK_F12",
+      "hid_usage": 69
+    },
+    {
+      "mac_symbol": "kVK_F15",
+      "hid_usage": 106
+    },
+    {
+      "mac_symbol": "kVK_Help",
+      "hid_usage": 117
+    },
+    {
+      "mac_symbol": "kVK_Home",
+      "hid_usage": 74
+    },
+    {
+      "mac_symbol": "kVK_PageUp",
+      "hid_usage": 75
+    },
+    {
+      "mac_symbol": "kVK_ForwardDelete",
+      "hid_usage": 76
+    },
+    {
+      "mac_symbol": "kVK_F4",
+      "hid_usage": 61
+    },
+    {
+      "mac_symbol": "kVK_End",
+      "hid_usage": 77
+    },
+    {
+      "mac_symbol": "kVK_F2",
+      "hid_usage": 59
+    },
+    {
+      "mac_symbol": "kVK_PageDown",
+      "hid_usage": 78
+    },
+    {
+      "mac_symbol": "kVK_F1",
+      "hid_usage": 58
+    },
+    {
+      "mac_symbol": "kVK_LeftArrow",
+      "hid_usage": 80
+    },
+    {
+      "mac_symbol": "kVK_RightArrow",
+      "hid_usage": 79
+    },
+    {
+      "mac_symbol": "kVK_DownArrow",
+      "hid_usage": 81
+    },
+    {
+      "mac_symbol": "kVK_UpArrow",
+      "hid_usage": 82
+    }
+  ]
+}

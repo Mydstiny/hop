@@ -1,6 +1,21 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16)
 project(hop)
 set(CMAKE_CXX_STANDARD 17)
 add_library(hop SHARED napi_bridge.cpp client.cpp)
 target_compile_options(hop PRIVATE -Wall -Wextra -Werror=return-type)
 target_link_libraries(hop PUBLIC libace_napi.z.so libohinput.so libhilog_ndk.z.so)
+
+# v2 uses the pinned shared TLS implementation. A checked local source path
+# can be supplied for offline builds; otherwise core fetches the verified tar.
+get_filename_component(HOP_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../.." ABSOLUTE)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(HOP_ENABLE_EXPERIMENTAL_TLS ON CACHE BOOL "" FORCE)
+set(MBEDTLS_FATAL_WARNINGS OFF CACHE BOOL "" FORCE)
+if(DEFINED ENV{HOP_MBEDTLS_SOURCE_DIR})
+  set(HOP_MBEDTLS_SOURCE_DIR "$ENV{HOP_MBEDTLS_SOURCE_DIR}" CACHE PATH "" FORCE)
+endif()
+add_subdirectory("${HOP_ROOT}/core" "${CMAKE_CURRENT_BINARY_DIR}/hop-core")
+add_library(hopv2 SHARED v2_crypto_napi.cpp v2_receiver.cpp)
+target_compile_options(hopv2 PRIVATE -Wall -Wextra -Werror=return-type)
+target_link_libraries(hopv2 PRIVATE hop_tls libace_napi.z.so libohinput.so libhilog_ndk.z.so libpasteboard.so)

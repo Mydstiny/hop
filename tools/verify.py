@@ -54,12 +54,15 @@ def main(argv=None):
     output.mkdir(exist_ok=True)
     commands = [
         ('tests', [sys.executable, 'tools/generate_keymap.py', '--check'], ROOT),
+        ('tests', [sys.executable, 'tools/generate_hid_keymap.py', '--check'], ROOT),
         ('tests', [sys.executable, 'tools/check_xcode_project.py'], ROOT),
         ('tests', [sys.executable, 'tools/test_xcode_project.py'], ROOT),
         ('tests', [sys.executable, 'tools/test_resolve_xcode.py'], ROOT),
         ('tests', [sys.executable, 'tools/test_verify.py'], ROOT),
         ('tests', [sys.executable, 'tools/test_device_preflight.py'], ROOT),
         ('tests', [sys.executable, '-m', 'unittest', 'discover', '-s', 'tools/mock-peer', '-v'], ROOT),
+        ('tests', ['sh', 'core/tests/run.sh'], ROOT),
+        ('tests', [sys.executable, 'apps/harmonyos/tests/run_v2_tests.py'], ROOT),
         ('build_tests', ['bash', 'apps/macos/scripts/verify.sh'], ROOT),
         ('build_tests', ['bash', 'scripts/verify.sh'], ROOT / 'apps/harmonyos'),
         ('tests', [sys.executable, 'tools/test_native_interop.py'], ROOT),

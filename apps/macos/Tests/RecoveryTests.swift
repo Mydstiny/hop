@@ -1,6 +1,12 @@
 import Foundation
 import ApplicationServices
 
+private final class MemoryPointerSettings: PointerSettingsStore {
+    var values: [String: Data] = [:]
+    func data(forKey key: String) -> Data? { values[key] }
+    func set(_ value: Any?, forKey key: String) { values[key] = value as? Data }
+}
+
 /// Runs the ACTUAL synchronous recovery routine against fake cursor operations.
 /// Does not create NSApplication/CGEvent/CGEventTap or query/capture physical keyboard/mouse state.
 @main struct RecoveryTests {
@@ -32,7 +38,68 @@ import ApplicationServices
             calls.append("warp"); return .success
         })
         input = InputCapture(keymap: keymap, cursor: cursor)
+        let leftShift = CGEventFlags(rawValue: CGEventFlags.maskShift.rawValue | 0x0002)
+        let bothShift = CGEventFlags(rawValue: CGEventFlags.maskShift.rawValue | 0x0002 | 0x0004)
+        let rightShift = CGEventFlags(rawValue: CGEventFlags.maskShift.rawValue | 0x0004)
+        check(eventModifiers(previous: 0, flags: leftShift, changedBit: 1) == 1, "left shift from event rather than system key-state query")
+        check(eventModifiers(previous: 1, flags: bothShift, changedBit: 2) == 3, "independent left and right shifts")
+        check(eventModifiers(previous: 3, flags: rightShift, changedBit: 1) == 2, "one side release preserves other")
+        check(eventModifiers(previous: 2, flags: [], changedBit: 2) == 0, "aggregate release clears both sides")
+        check(eventModifiers(previous: 0, flags: .maskCommand, changedBit: 64) == 64, "aggregate-only modifier press")
+        check(eventModifiers(previous: 64, flags: .maskCommand, changedBit: 128) == 192, "aggregate-only second modifier press")
+        check(eventModifiers(previous: 192, flags: .maskCommand, changedBit: 64) == 128, "aggregate-only one side release")
+        check(eventModifiers(previous: 0, flags: .maskAlphaShift, changedBit: 256) == 256, "caps latch follows the event flag")
+        check(eventModifiers(previous: 256, flags: [], changedBit: 256) == 0, "caps latch turns off")
+        let originalTuning = MouseTuning()
+        check(originalTuning.valid && originalTuning.wheel(1, horizontalAxis: false) == -120, "default v1 wheel sign and magnitude unchanged")
+        check(originalTuning.wheel(Int64.min, horizontalAxis: false) == 120000, "wheel clamps before multiplication")
+        check(originalTuning.wheel(Int64.max, horizontalAxis: true) == -120000, "wheel maximum cannot overflow")
+        let customized = MouseTuning(movement: 2, horizontal: 0.5, vertical: 3, reverseHorizontal: true, reverseVertical: false)
+        check(customized.valid && customized.wheel(1, horizontalAxis: true) == 60, "independent horizontal speed and reversal")
+        check(customized.wheel(1, horizontalAxis: false) == -360, "independent vertical speed")
+        check(customized.wheel(1000, horizontalAxis: false) == -120000, "scaled wheel respects wire limit")
+        check(MouseTuning.key(for: [UInt8](repeating: 0, count: 16)) == nil, "reject zero peer identity")
+        check(MouseTuning.key(for: [1]) == nil && MouseTuning.key(for: [UInt8](repeating: 1, count: 16)) != nil, "settings keyed by full peer identity")
+        let memory = MemoryPointerSettings()
+        let peerA = [UInt8](repeating: 1, count: 16), peerB = [UInt8](repeating: 2, count: 16)
+        check(customized.save(peer: peerA, defaults: memory), "valid settings saved to peer A")
+        check(MouseTuning.load(peer: peerA, defaults: memory) == customized, "peer A settings round-trip")
+        check(MouseTuning.load(peer: peerB, defaults: memory) == originalTuning, "peer B starts with independent defaults")
+        let fingerprintA = String(repeating: "A", count: 64)
+        let fingerprintB = String(repeating: "B", count: 64)
+        check(customized.save(fingerprint: fingerprintA, defaults: memory), "v2 fingerprint settings saved")
+        check(MouseTuning.load(fingerprint: fingerprintA, defaults: memory) == customized, "v2 fingerprint settings round-trip")
+        check(MouseTuning.load(fingerprint: fingerprintB, defaults: memory) == originalTuning, "v2 targets retain independent settings")
+        check(!customized.save(fingerprint: String(repeating: "a", count: 64), defaults: memory), "unverified fingerprint format rejected")
+        check(!customized.save(fingerprint: String(repeating: "Z", count: 64), defaults: memory), "non-hex fingerprint rejected")
+        check(!customized.save(fingerprint: "A", defaults: memory), "truncated fingerprint rejected")
+        check(!MouseTuning(movement: .infinity).save(peer: peerA, defaults: memory), "invalid settings are never persisted")
+        check(MouseTuning.load(peer: peerA, defaults: memory) == customized, "invalid update preserves saved settings")
+        let oldData = Data("{\"movement\":2,\"horizontal\":0.5,\"vertical\":3,\"reverseHorizontal\":true,\"reverseVertical\":false}".utf8)
+        memory.set(oldData, forKey: MouseTuning.key(for: peerB)!)
+        check(MouseTuning.load(peer: peerB, defaults: memory) == customized, "previous settings migrate without losing speed or direction")
+        check(!MouseTuning(reportRateHz: 0).valid && !MouseTuning(reportRateHz: 999999).valid, "unsupported rates cannot reach timer scheduling")
+        check(MouseTuning(reportRateHz: 1000).valid, "1000 Hz forwarding ceiling is configurable")
+        check(permitsFocusEntry(modifiers: 0, buttons: 0, nonmodifierKeysUp: true, requireNeutralState: true), "v2 neutral entry accepted")
+        check(!permitsFocusEntry(modifiers: 64, buttons: 0, nonmodifierKeysUp: true, requireNeutralState: true), "v2 held modifier prevents entry")
+        check(!permitsFocusEntry(modifiers: 256, buttons: 0, nonmodifierKeysUp: true, requireNeutralState: true), "v2 caps latch is not silently dropped")
+        check(!permitsFocusEntry(modifiers: 0, buttons: 1, nonmodifierKeysUp: true, requireNeutralState: true), "v2 held button prevents entry")
+        check(!permitsFocusEntry(modifiers: 0, buttons: 0, nonmodifierKeysUp: false, requireNeutralState: true), "v2 ordinary held key prevents entry")
+        check(permitsFocusEntry(modifiers: 64, buttons: 1, nonmodifierKeysUp: true, requireNeutralState: false), "legacy entry behavior retained")
+        input.tuning = customized
+        input.tuning = MouseTuning(movement: .nan)
+        check(input.tuning == customized, "non-finite settings do not reach callback")
+        input.tuning = MouseTuning(movement: 5)
+        check(input.tuning == customized, "out-of-range settings do not reach callback")
         var sent = [Message](); input.send = { sent.append($0) }
+        input.stageForwardingMoveTest()
+        input.tick()
+        check(sent.isEmpty, "fixed maintenance timer does not bypass selected move rate")
+        input.flushMove()
+        check(sent.count == 1 && sent[0].type == .move && sent[0].epoch == 42, "move timer forwards queued movement")
+        input.flushMove()
+        check(sent.count == 1, "empty movement slot does not resend")
+        sent.removeAll()
         for label in ["network", "protocol", "heartbeat", "event-tap-disabled", "emergency", "permission", "display", "sleep", "disable", "quit"] {
             calls.removeAll(); input.stageRecoveryTest()
             check(input.restore() == 42, "\(label) old epoch returned")
@@ -85,6 +152,12 @@ import ApplicationServices
         input.stop(drain: false)
         check(!input.recoveryTestStopWhenDrained && input.recoveryTestQuarantine, "quit/permission-loss stop cannot retain tap but does not falsely clear ownership")
         check(!input.isRunning && sent.isEmpty, "no event tap or network was started")
+        input.stageRecoveryTest()
+        input.stageRoutedPointerTest(x: 1000, y: 500, width: 1001, height: 1001)
+        check(input.matchesRemoteEdge(x: .max, y: 32768), "authenticated peer can request the physically reached edge")
+        check(!input.matchesRemoteEdge(x: 0, y: 32768) && !input.matchesRemoteEdge(x: .max, y: 28000), "wrong edge and stale along-edge position cannot reroute input")
+        input.stageRecoveryTest(remote: false)
+        check(!input.matchesRemoteEdge(x: .max, y: 32768), "pending capture cannot honor a remote LEAVE")
         print("PASS: \(checks) native recovery-order/idempotency/failure-retry checks with fake cursor APIs; no user input capture")
     }
 }

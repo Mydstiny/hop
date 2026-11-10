@@ -7,6 +7,8 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { statusBarManager } from '@kit.DeskTopExtensionKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { HopService } from '../HopService';
+import { HopV2Coordinator } from '../HopV2Coordinator';
+import { ui } from '../HopI18n';
 
 export default class EntryAbility extends UIAbility {
   private icons?: statusBarManager.StatusBarIcon;
@@ -86,10 +88,10 @@ export default class EntryAbility extends UIAbility {
         await new Promise<void>((resolve, reject) => {
           statusBarManager.addToStatusBar(this.context, {
             icons: icons,
-            quickOperation: { title: 'Hop', height: 420, abilityName: 'HopStatusBarAbility', moduleName: 'entry' },
+            quickOperation: { title: 'Hop', height: 240, abilityName: 'HopStatusBarAbility', moduleName: 'entry' },
             statusBarGroupMenu: [[
-              { title: 'Disconnect', menuAction: { abilityName: 'EntryAbility', notifyOnly: true, menuCode: 'disconnect' } },
-              { title: 'Quit Hop', menuAction: { abilityName: 'EntryAbility', notifyOnly: true, menuCode: 'quit' } }
+              { title: ui('Disconnect', '断开连接'), menuAction: { abilityName: 'EntryAbility', notifyOnly: true, menuCode: 'disconnect' } },
+              { title: ui('Quit Hop', '退出 Hop'), menuAction: { abilityName: 'EntryAbility', notifyOnly: true, menuCode: 'quit' } }
             ]]
           }, (error) => {
             if (error && error.code !== 0) { reject(error); } else { resolve(); }
@@ -98,7 +100,7 @@ export default class EntryAbility extends UIAbility {
         this.trayReady = true;
         hilog.info(0x0000, 'Hop', 'Statusbar registration callback succeeded');
         statusBarManager.on('rightMenuClick', (event) => {
-          if (event.data?.menuCode === 'disconnect') { service.disconnect(); }
+            if (event.data?.menuCode === 'disconnect') { HopV2Coordinator.instance.disconnect(); service.disconnect(); }
           if (event.data?.menuCode === 'quit') {
             this.quit().catch((error: Error) => { service.view.message = `Cannot quit cleanly: ${String(error)}`; });
           }

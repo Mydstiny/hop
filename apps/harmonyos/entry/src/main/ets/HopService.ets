@@ -1,4 +1,9 @@
 import { common } from '@kit.AbilityKit';
+import { HopClipboard } from './HopClipboard';
+import { HopV2Vault, V2IdentityValidator } from './HopV2Vault';
+import { HopV2IdentityManager } from './HopV2Identity';
+import { HopV2Discovery } from './HopV2Discovery';
+import { HopV2Coordinator } from './HopV2Coordinator';
 import { preferences } from '@kit.ArkData';
 import { display } from '@kit.ArkUI';
 import { mdns } from '@kit.NetworkKit';
@@ -40,8 +45,14 @@ export class HopService {
   private attempts: number = 0;
   private browsing?: mdns.DiscoveryService;
   private saving: boolean = false;
-  private paused: boolean = false;
+  private paused: boolean = true; // legacy requires an explicit connection after launch
   private unpairPending: boolean = false;
+  // Factory is deliberately not called by v1; encrypted v2 owns its lifecycle.
+  createClipboardForEncryptedSession(): HopClipboard { return new HopClipboard(); }
+  createVaultForEncryptedSession(validator: V2IdentityValidator): HopV2Vault { return new HopV2Vault(validator); }
+  createIdentityManagerForEncryptedSession(): HopV2IdentityManager { return new HopV2IdentityManager(); }
+  createDiscoveryForEncryptedSession(): HopV2Discovery { return new HopV2Discovery(); }
+  getContext(): common.Context | undefined { return this.context; }
   private width: number = 0;
   private height: number = 0;
 
@@ -247,6 +258,7 @@ export class HopService {
     } catch (_) { this.view.discovery = 'A Mac could not be resolved. Use manual IP.'; }
   }
   stop(): void {
+    HopV2Coordinator.instance.shutdown();
     this.disconnect();
     if (this.timer >= 0) { clearInterval(this.timer); this.timer = -1; }
     this.guard(() => { if (this.browsing) { this.browsing.stopSearchingMDNS(); } });

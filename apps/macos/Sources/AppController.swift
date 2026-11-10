@@ -10,7 +10,11 @@ final class AppController {
     private(set) var listenerPort: UInt16?
     private var connectionID: UUID?
     private var tickTimer: Timer?
-    private var moveTimer: Timer?
+    private lazy var moveScheduler = MoveForwardingScheduler(
+        hasPending: { [weak self] in self?.input.hasPendingMove == true },
+        flush: { [weak self] in self?.input.flushMove() },
+        rate: { [weak self] in self?.input.tuning.reportRateHz ?? 240 })
+    private var maintenanceTimer: Timer?
     private var heartbeatAt: TimeInterval = 0
     private var pairingUntil: TimeInterval = 0
     private var awaitingPermission = false
@@ -25,9 +29,11 @@ final class AppController {
             (UInt32(clamping: CGDisplayPixelsWide(CGMainDisplayID())), UInt32(clamping: CGDisplayPixelsHigh(CGMainDisplayID())))
         }
         input.direction = direction
+        if let peer = session.binding?.peerID { input.tuning = MouseTuning.load(peer: peer) }
         input.mayEnter = { [weak self] in self?.enabled == true && self?.session.authenticated == true }
         input.peerSize = { [weak self] in (self?.session.peer?.width ?? 1, self?.session.peer?.height ?? 1) }
         input.send = { [weak self] message in self?.send(message) }
+        input.movementAvailable = { [weak self] in self?.moveScheduler.movementAvailable() }
         input.fault = { [weak self] text, reason in
             guard let self else { return }
             // InputCapture has ALREADY restored synchronously. Never stop an active tap,
@@ -43,7 +49,13 @@ final class AppController {
             DispatchQueue.main.async { [weak self] in self?.update() }
         }
         session.send = { [weak self] message in self?.send(message) }
-        session.changed = { [weak self] in self?.update() }
+        session.changed = { [weak self] in
+            guard let self else { return }
+            let oldRate = self.input.tuning.reportRateHz
+            self.input.tuning = self.session.binding.map { MouseTuning.load(peer: $0.peerID) } ?? MouseTuning()
+            if oldRate != self.input.tuning.reportRateHz { self.moveScheduler.rateChanged() }
+            self.update()
+        }
         server.onListening = { [weak self] port in
             hopLog("listening \(port)")
             self?.listenerPort = port; self?.status = "Listening on TCP \(port)"; self?.update()
@@ -64,9 +76,9 @@ final class AppController {
         server.start(identity: session.identity)
         if sharingWanted { setEnabled(true) }
         tickTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in self?.tick() }
-        moveTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 120, repeats: true) { [weak self] _ in self?.input.tick() }
+        maintenanceTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 120, repeats: true) { [weak self] _ in self?.input.tick() }
         if let tickTimer { RunLoop.main.add(tickTimer, forMode: .common) }
-        if let moveTimer { RunLoop.main.add(moveTimer, forMode: .common) }
+        if let maintenanceTimer { RunLoop.main.add(maintenanceTimer, forMode: .common) }
         PermissionDock.shared.showIfNeeded()
         let workspace = NSWorkspace.shared.notificationCenter
         for name in [NSWorkspace.willSleepNotification, NSWorkspace.screensDidSleepNotification, NSWorkspace.sessionDidResignActiveNotification] {
@@ -188,6 +200,13 @@ final class AppController {
         session.direction = direction; input.direction = direction
         UserDefaults.standard.set(direction == 0 ? "left" : "right", forKey: "HopDirection"); update()
     }
+    func setMouseTuning(_ tuning: MouseTuning) {
+        guard let peer = session.binding?.peerID, tuning.save(peer: peer) else { return }
+        let oldRate = input.tuning.reportRateHz
+        input.tuning = tuning
+        if oldRate != tuning.reportRateHz { moveScheduler.rateChanged() }
+        update()
+    }
     func beginPairing() {
         guard session.binding == nil else { return }
         session.pairingAllowed = true; pairingUntil = monotonicNow() + 60
@@ -229,7 +248,7 @@ final class AppController {
     func quit() {
         restoreAndNotify(reason: 1); input.stop(drain: false); enabled = false
         close(reason: 0, text: "Quitting")
-        tickTimer?.invalidate(); moveTimer?.invalidate()
+        tickTimer?.invalidate(); moveScheduler.stop(); maintenanceTimer?.invalidate()
         for observer in observers { NSWorkspace.shared.notificationCenter.removeObserver(observer); NotificationCenter.default.removeObserver(observer) }
         server.stop()
     }

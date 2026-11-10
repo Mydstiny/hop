@@ -163,7 +163,8 @@ def check(root):
         need(all(paths.get(ref) is not None for ref in refs), f'{kind}: unresolved/generated input')
         return {paths[ref] for ref in refs}
     source_paths = members('PBXSourcesBuildPhase')
-    actual_sources = {p.resolve() for p in (app / 'Sources').rglob('*.swift')}
+    source_dirs = (app / 'Sources', app / 'native')
+    actual_sources = {p.resolve() for folder in source_dirs for p in folder.rglob('*.swift')}
     need(actual_sources and source_paths == actual_sources,
          f'Compile Sources mismatch: missing={sorted(map(str, actual_sources - source_paths))}; '
          f'extra={sorted(map(str, source_paths - actual_sources))}')
@@ -177,7 +178,17 @@ def check(root):
         need(path is None or path.suffix.lower() not in ('.storyboard', '.xib', '.nib'),
              f'unexpected window/storyboard/nib resource: {path}')
 
-    generator = phase('PBXShellScriptBuildPhase')
+    scripts = [p for p in phases if p['isa'] == 'PBXShellScriptBuildPhase']
+    native = [p for p in scripts if p.get('name') == 'Build Hop encrypted transport']
+    generators = [p for p in scripts if p not in native]
+    need(len(native) == len(generators) == 1, 'expected keymap and encrypted transport build phases')
+    generator, native_phase = generators[0], native[0]
+    archive = '$(DERIVED_FILE_DIR)/hop-v2-native/libhop-v2-universal.a'
+    need(native_phase.get('shellPath') == '/bin/bash' and
+         native_phase.get('shellScript') == 'set -euo pipefail\nHOP_V2_BUILD_DIR="$DERIVED_FILE_DIR/hop-v2-native" /bin/bash "$SRCROOT/scripts/build-v2-core.sh"\n' and
+         native_phase.get('outputPaths') == [archive] and
+         phases.index(native_phase) < phases.index(phase('PBXSourcesBuildPhase')),
+         'encrypted transport build phase or archive changed')
     need(generator.get('shellPath') == '/bin/bash', 'unexpected resource-generation shell')
     need(generator.get('shellScript') == 'set -euo pipefail\n/usr/bin/python3 "$SRCROOT/scripts/generate-resources.py"\n',
          'resource-generation script shape changed; review instead of evaluating arbitrary shell')
@@ -229,6 +240,8 @@ def check(root):
              archs == ['arm64', 'x86_64'], f'{name}: unexpected architecture intent {archs!r}')
         need(settings.get('ONLY_ACTIVE_ARCH') == ('YES' if name == 'Debug' else 'NO'),
              f'{name}: unexpected ONLY_ACTIVE_ARCH policy')
+        need(settings.get('OTHER_LDFLAGS') == ['$(inherited)', archive, '-lc++'],
+             f'{name}: wrong encrypted transport link configuration')
 
     scheme = ET.parse(project_dir / 'xcshareddata/xcschemes/Hop.xcscheme').getroot()
     need(scheme.tag == 'Scheme', 'invalid shared scheme root')
@@ -256,10 +269,11 @@ def check(root):
     need(arch_default and shlex.split(arch_default[1]) == ['arm64', 'x86_64'],
          'native build script universal default changed')
     for token in ('-target "$arch-apple-macosx14.0"', '-swift-version 5',
-                  'SOURCES=("$ROOT"/Sources/*.swift)', 'cp "$ROOT/Resources/Info.plist"'):
+                  'SOURCES=("$ROOT"/Sources/*.swift)', 'NATIVE=("$ROOT"/native/*.swift)',
+                  '"$CORE/libhop-v2-universal.a" -lc++', 'cp "$ROOT/Resources/Info.plist"'):
         need(token in native, f'native build source contract changed: {token}')
-    need(all(p.parent == app / 'Sources' for p in actual_sources),
-         'native Sources/*.swift glob does not cover nested production sources')
+    need(all(p.parent in source_dirs for p in actual_sources),
+         'Swift source globs do not cover nested production sources')
     xcode_route = (app / 'scripts/xcode-build.sh').read_text().replace('\\\n', ' ')
     commands = [shlex.split(line) for line in xcode_route.splitlines() if line.startswith('xcodebuild -project ')]
     need(len(commands) == 1 and all(token in commands[0] for token in

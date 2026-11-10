@@ -15,11 +15,16 @@ final class TCPServer {
     var onFault: ((UUID?, String) -> Void)?
     var onListening: ((UInt16) -> Void)?
 
+    static func transportParameters() -> NWParameters {
+        let options = NWProtocolTCP.Options()
+        options.noDelay = true // small input frames should not wait for Nagle aggregation
+        return NWParameters(tls: nil, tcp: options)
+    }
     func start(identity: [UInt8], port: UInt16 = 24890, loopbackOnly: Bool = false) {
         queue.async { [weak self] in
             guard let self else { return }
             do {
-                let parameters = NWParameters.tcp
+                let parameters = Self.transportParameters()
                 parameters.allowLocalEndpointReuse = true
                 if loopbackOnly { parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: NWEndpoint.Port(rawValue: port)!) }
                 let listener = try NWListener(using: parameters, on: NWEndpoint.Port(rawValue: port)!)

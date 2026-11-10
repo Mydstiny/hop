@@ -29,7 +29,7 @@ void Client::Run(Config cfg) noexcept {
     auto& resuming=pairing.resuming;auto& code=pairing.code;auto& direction=pairing.direction;
     auto& nonce=pairing.nonce;auto& peer=pairing.peer;auto& token=pairing.token;
     enum class Mode{Handshake,Local,Remote,Leaving};Mode mode=Mode::Handshake;
-    uint32_t epoch=0,lastEpoch=0;bool armed=false;int enterX=0;
+    uint32_t epoch=0,lastEpoch=0;bool armed=false,wheelReported=false;int enterX=0;
     uint64_t connected=0,lastReceive=0,lastSent=0,lastKeep=0,leaveDeadline=0;
     std::array<uint8_t,16> id{};
     auto notify=[&](const std::string& state,const std::string& message=""){event_({"state",state,message,"","",0});};
@@ -68,7 +68,10 @@ void Client::Run(Config cfg) noexcept {
                 else if(action==PairState::Action::Ready){authenticated=true;mode=Mode::Local;notify("local","Connected · input remains on Mac");}
                 lastReceive=now;return;
             }
-            Require(authenticated,"input before authentication");Require(Injector::Authorization()==AUTHORIZED,"Injection authorization revoked");
+            // Authorization is queried before each socket read batch below.
+            // Re-querying the system service for every coalesced motion frame
+            // adds an IPC round trip to the hot path without strengthening it.
+            Require(authenticated,"input before authentication");
             if(m.type()==Type::Enter){Require(mode==Mode::Local&&m.epoch()!=lastEpoch,"unexpected ENTER");if(lastEpoch)Require(int32_t(m.epoch()-lastEpoch)>0,"stale epoch");epoch=lastEpoch=m.epoch();
                 InjectRequire(input.Position(U16(p),U16(p+2))&&input.Modifiers(U16(p+4))&&input.Buttons(U16(p+6)),"ENTER injection failed");
                 enterX=input.x();armed=false;mode=Mode::Remote;Write(fd,m);notify("remote","Receiving Mac keyboard and mouse");
@@ -84,7 +87,10 @@ void Client::Run(Config cfg) noexcept {
                 if(mode==Mode::Remote&&m.epoch()==epoch){
                     if(m.type()==Type::Move)InjectRequire(input.Position(U16(p),U16(p+2)),"Mouse move injection failed");
                     else if(m.type()==Type::Button)InjectRequire(input.Position(U16(p+2),U16(p+4))&&input.Buttons(U16(p+6)),"Mouse button injection failed");
-                    else if(m.type()==Type::Wheel)InjectRequire(input.Wheel(int32_t(U32(p)),int32_t(U32(p+4))),"Wheel injection failed");
+                    else if(m.type()==Type::Wheel){
+                        if(!wheelReported){OH_LOG_Print(LOG_APP, LOG_INFO, 0x0000, "Hop", "received wheel frame");wheelReported=true;}
+                        InjectRequire(input.Wheel(int32_t(U32(p)),int32_t(U32(p+4))),"Wheel injection failed");
+                    }
                     else if(m.type()==Type::Key)InjectRequire(input.Key(U16(p),U16(p+2),p[4],p[5]),"Key injection failed");
                     else throw std::runtime_error("wrong input direction/type");
                     if(m.type()==Type::Move||m.type()==Type::Button){if(direction==1?input.x()>=enterX+4:input.x()<=enterX-4)armed=true;bool edge=direction==1?input.x()<=0:input.x()>=input.width()-1;

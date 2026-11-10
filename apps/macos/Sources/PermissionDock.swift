@@ -35,7 +35,7 @@ final class PermissionDock {
     }
 
     private func followSettings() {
-        detail?.stringValue = InputCapture.permissionReport + "。可以创建后浮窗会消失。"
+        detail?.stringValue = InputCapture.permissionReport + HopLocale.text(". This panel closes when permission is available.", "。可以创建后浮窗会消失。")
         if InputCapture.permissionGranted { hide(); return }
         if let panel, panel.isVisible { place(panel) }
     }
@@ -63,7 +63,7 @@ final class PermissionDock {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false
-        panel.title = "Hop permissions"
+        panel.title = HopLocale.text("Hop permissions", "Hop 权限")
         let root = PassThroughView(frame: NSRect(origin: .zero, size: size))
         let card = FixedContentView(frame: NSRect(x: 0, y: 0, width: width, height: cardHeight))
         card.material = .hudWindow
@@ -82,10 +82,10 @@ final class PermissionDock {
         let icon = AppIconDragView(frame: NSRect(x: 16, y: 16, width: 72, height: 72))
         icon.fileURL = Bundle.main.bundleURL
         card.addSubview(icon)
-        let title = label("按住绿色图标，沿箭头向上拖进列表", size: 14, weight: .semibold, color: .labelColor)
+        let title = label(HopLocale.text("Drag the green icon into the list above", "按住绿色图标，沿箭头向上拖进列表"), size: 14, weight: .semibold, color: .labelColor)
         title.frame = NSRect(x: 104, y: 68, width: 280, height: 20)
         card.addSubview(title)
-        let detail = NSTextField(wrappingLabelWithString: "正在检查两项权限。")
+        let detail = NSTextField(wrappingLabelWithString: HopLocale.text("Checking permissions…", "正在检查两项权限。"))
         self.detail = detail
         detail.font = .systemFont(ofSize: 11)
         detail.textColor = .secondaryLabelColor
@@ -94,11 +94,11 @@ final class PermissionDock {
         detail.isSelectable = false
         detail.drawsBackground = false
         card.addSubview(detail)
-        let access = NSButton(title: "设备控制", target: self, action: #selector(openAccessibility))
+        let access = NSButton(title: HopLocale.text("Accessibility", "设备控制"), target: self, action: #selector(openAccessibility))
         access.bezelStyle = .rounded
         access.frame = NSRect(x: 392, y: 54, width: 112, height: 26)
         card.addSubview(access)
-        let listen = NSButton(title: "输入监控", target: self, action: #selector(openInputMonitoring))
+        let listen = NSButton(title: HopLocale.text("Input Monitoring", "输入监控"), target: self, action: #selector(openInputMonitoring))
         listen.bezelStyle = .rounded
         listen.frame = NSRect(x: 392, y: 20, width: 112, height: 26)
         card.addSubview(listen)

@@ -2,6 +2,18 @@
 
 要求：macOS14+；Apple Silicon 或 Intel。开发依赖仅 Apple Command Line Tools（CLT原生构建）或完整 Xcode（工程构建）、Python3（生成共享映射/离线测试）。没有第三方运行库。
 
+## Hop 2.0 候选包
+
+`Hop-2.0.0-rc.1-macos-universal-adhoc.zip` 同时包含 Apple Silicon 和 Intel 的可执行代码，属于本地测试候选。它使用 ad-hoc 签名，尚未公证；正式的站外下载安装包需使用 [Developer ID Application 和 Apple 公证](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)。无需上 Mac App Store。
+
+在菜单栏 Hop 的设置中切换「共享键鼠」或「接收键鼠」。首次配对时，两端核对完整指纹并分别确认。接收端可选择附近主机，或手动填写局域网地址和端口，v2 默认端口为 24891。在「空间布局」拖动电脑或用方向按钮贴合边缘。鼠标设置按设备保存。急停快捷键为 **Control + Option + Command + Esc**。
+
+两端分别启用“同步文本和图片剪贴板”后，仅在当前控制期间同步。首次读取可能弹出 macOS 的剪贴板访问提示；没有授权时可以继续使用键鼠。四平台候选使用 v2 加密协议；需要连接旧版时，两端必须明确选择旧版流程。
+
+2.0 源码构建另外需要 CMake 和固定版本的 Mbed TLS；TLS 库静态链接，无需在用户电脑安装。以下保留 1.x 的历史开发签名说明；发布状态以[候选清单](plans/2026-11-10-release-candidate.md)为准。
+
+维护者已有 Developer ID Application 身份和 `notarytool` 钥匙串配置时，可在本机设置 `HOP_MAC_DEVELOPER_ID` 和 `HOP_MAC_NOTARY_PROFILE` 后执行 `bash apps/macos/scripts/package-notarized.sh`。该命令会将签名包提交 Apple，等公证接受、盖章及系统校验通过后才生成公证 ZIP。不要把凭据或本地公证结果放进下载包。
+
 ## 1. 原生 CLT 构建（当前环境可用）
 
 仓库根目录：
@@ -58,13 +70,7 @@ python3 tools/test_xcode_project.py
 
 1. 解压通用构建包，将 `Hop.app` 拷到你自己的Applications目录（例如 `~/Applications`）。不要直接在构建缓存路径日常运行，路径与签名变化可能影响TCC授权。
 2. 核对来源和SHA-256。当前包为 **ad-hoc签名、未公证**，不是Developer ID发布包。Gatekeeper可能阻止双击。
-3. 在系统「隐私与安全性」中针对你确认来源的Hop使用“仍要打开”，或按系统提供的右键打开流程操作；不关闭全局Gatekeeper。
-4. 只有确认是你自己构建且信任的包时，才可对**单个准确路径**移除隔离属性，不可对系统/下载目录递归操作：
-
-```sh
-xattr -dr com.apple.quarantine "$HOME/Applications/Hop.app"
-open "$HOME/Applications/Hop.app"
-```
+3. 如果系统限制打开，请参阅 [Apple 的应用安全说明](https://support.apple.com/en-us/102445)。
 
 应用只应出现在菜单栏，不应打开主窗口。默认共享关闭。
 
@@ -72,8 +78,8 @@ open "$HOME/Applications/Hop.app"
 
 - 点菜单栏Hop，在Popover中按引导打开系统设置→隐私与安全性→辅助功能；允许准确的Hop应用。
 - 若系统要求输入监控也应授权该应用，按提示退出重开。没有权限时不可启用捕获、更不能隐藏/冻结光标。
-- 首次监听LAN可能出现防火墙/本地网络许可；允许同一可信局域网内发现与TCP24890连接，不要映射公网端口。
-- 在Popover选择鸿蒙相对Mac的左/右方向，打开配对窗口；鸿蒙选中Mac后核对六位码，**两端都确认**。之后凭据存Keychain。
+- 首次监听可能出现防火墙或本地网络提示。v2 默认使用 TCP 24891，v1 使用 TCP 24890。
+- v1 在配对时核对六位码，v2 核对完整指纹。两端都确认后，Mac 将配对记录存入钥匙串。
 - 远程输入时使用 **Ctrl+Option+Command+Esc** 急停。首次真机试验应备一个直接连接Mac的备用输入设备。
 
 应用不承诺登录前、锁屏安全界面、系统保留媒体键、任意多屏拓扑。崩溃/SIGKILL后的系统光标清理必须按验收清单实测，不能因为存在恢复函数就认为已证明。

@@ -2,6 +2,7 @@
 #include "pair_state.h"
 #include "injector.h"
 #include "client.h"
+#include "generated/hid_keymap.h"
 #include <fstream>
 #include <iostream>
 #include <chrono>
@@ -46,16 +47,37 @@ static void CodecTests(const char* path){
  Decoder partial;partial.feed(all.data(),37,[](auto&){});Check(partial.partial(),"truncated EOF remains partial");
 }
 static void InjectorTests(){
+ Check(MapHidKey(0x04)==MapMacKey(0),"v2 HID A shares canonical target");
+ Check(MapHidKey(0x06)==MapMacKey(8),"v2 HID C shares canonical target");
+ Check(MapHidKey(0xe3)==MapMacKey(55)&&MapHidKey(0xe7)==MapMacKey(54),"v2 left and right Command stay distinct");
+ Check(MapHidKey(0x39)==MapMacKey(57),"v2 Caps Lock matches canonical target");
+ Check(MapHidKey(0)==-1&&MapHidKey(0xff)==-1,"unknown HID usage is not guessed");
  fake::Reset();Injector i;i.Dimensions(1001,501);Check(i.Position(32768,65535)&&i.x()==500&&i.y()==500,"normalized round");
  Check(i.Modifiers(1|64|256),"modifier repair");Check(i.Buttons(1|2|8),"held button state");Check(i.Position(40000,20000),"drag move");
  Check(i.Key(0,1|64|256,true,false)&&i.Key(0,1|64|256,true,true),"key repeat");Check(i.Wheel(120,-240),"axis sequence");
  {std::lock_guard<std::mutex> l(fake::mutex);Check(fake::buttons.count(MOUSE_BUTTON_LEFT)&&fake::buttons.count(MOUSE_BUTTON_RIGHT)&&fake::buttons.count(MOUSE_BUTTON_BACK),"explicit button mapping");
- int begin=0,update=0,end=0;for(const auto&m:fake::mouse){begin+=m.action==4;update+=m.action==5;end+=m.action==6;}Check(begin==2&&update==2&&end==2,"complete wheel phases");}
+ int begin=0,update=0,end=0;for(const auto&m:fake::mouse){begin+=m.action==4;update+=m.action==5;end+=m.action==6;if(m.action==4||m.action==5){Check(m.value!=0,"scroll begin/update carry axis data");Check(m.axis==0?m.value==45.0f:m.value==22.5f,"scroll axis scale and sign");}if(m.action==6)Check(m.value==0,"scroll end has zero axis data");}Check(begin==2&&update==2&&end==2,"complete wheel phases");}
  i.Release();Check(fake::Empty(),"release actual pressed set");Check(fake::caps==0,"restore caps lock");i.Release();Check(fake::created==fake::destroyed,"destroy SDK objects");
  fake::failNext=true;Check(!i.Position(0,0),"injection errors propagated");Check(fake::created==fake::destroyed,"destroy SDK object on failure");
  fake::failMouseAction=MOUSE_ACTION_AXIS_UPDATE;Check(!i.Wheel(0,120),"axis update failure propagated");Check(fake::mouse.back().action==MOUSE_ACTION_AXIS_END,"end axis even on failed update");
  fake::failMouseAction=MOUSE_ACTION_AXIS_END;Check(!i.Wheel(0,120),"axis end failure propagated");auto before=fake::mouse.size();i.Release();Check(fake::mouse.size()==before+1&&fake::mouse.back().action==MOUSE_ACTION_AXIS_END,"release retries incomplete axis end");
  fake::failNext=true;Check(!i.Key(0,0,true,false),"key down failure tracked");i.Release();Check(fake::Empty(),"failed down release attempt safe");Check(fake::created==fake::destroyed,"all error SDK objects destroyed");
+ fake::Reset();fake::failCapsQuery=true;Injector noPhysicalKeyboard;
+ Check(noPhysicalKeyboard.Key(57,256,true,false)&&fake::caps==1,"caps toggle works when state query cannot find a keyboard");
+ Check(noPhysicalKeyboard.Key(0,256,true,false)&&noPhysicalKeyboard.Key(0,256,false,false)&&fake::caps==1,"ordinary key does not retoggle caps");
+ Check(noPhysicalKeyboard.Key(57,0,false,false)&&fake::caps==0,"second caps transition toggles off without a state query");
+ noPhysicalKeyboard.Release();Check(fake::Empty()&&fake::caps==0,"unqueryable caps does not invent a restoration toggle");
+ fake::Reset();fake::failCapsQuery=true;Injector hid;
+ Check(hid.KeyHid(0x39,256,true,false)&&fake::caps==1,"v2 HID caps toggles once on down");
+ Check(hid.KeyHid(0x39,256,false,false)&&fake::caps==1,"v2 HID caps release does not retoggle");
+ Check(hid.KeyHid(0x04,256,true,false)&&hid.KeyHid(0x04,256,false,false),"v2 HID A down/up");
+ Check(hid.KeyHid(0x39,0,true,false)&&hid.KeyHid(0x39,0,false,false)&&fake::caps==0,"v2 second caps tap restores");
+ hid.Release();Check(fake::Empty(),"v2 HID releases injected keys");
+ fake::Reset();Injector retry;Check(retry.KeyHid(0x04,0,true,false)&&retry.Buttons(1),"v2 release retry setup");
+ fake::failNext=true;fake::failMouseAction=MOUSE_ACTION_BUTTON_UP;
+ Check(!retry.Release(),"failed releases are reported");
+ Check(!fake::Empty(),"failed release remains tracked");
+ Check(retry.Release()&&fake::Empty(),"failed key and button releases retry");
 }
 static void Send(int fd,const Message& m,bool fragments=false){auto f=m.frame();size_t n=0;while(n<f.size()){ssize_t count=send(fd,f.data()+n,fragments?1:f.size()-n,0);Check(count>0,"server write");n+=size_t(count);}}
 static Message Receive(int fd){std::array<uint8_t,kFrameSize>b{};size_t n=0;while(n<b.size()){ssize_t count=recv(fd,b.data()+n,b.size()-n,0);Check(count>0,"server read");n+=size_t(count);}Check(U32(b.data())==128,"server framing");Message m(Type::Hello);std::copy(b.begin()+4,b.end(),m.bytes.begin());m.validate();return m;}

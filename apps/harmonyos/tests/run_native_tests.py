@@ -15,6 +15,7 @@ ROOT = HERE.parents[2]
 CPP = HERE.parent / 'entry/src/main/cpp'
 OUT = HERE / '.build'
 OUT.mkdir(exist_ok=True)
+subprocess.run([sys.executable, str(ROOT / 'tools/generate_hid_keymap.py'), '--check'], check=True)
 vectors = json.loads((ROOT / 'protocol/golden-vectors.json').read_text())
 extra = ROOT / 'protocol/handshake-vectors.json'
 if extra.exists():

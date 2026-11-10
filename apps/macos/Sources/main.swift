@@ -3,7 +3,7 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var item: NSStatusItem?
     private let popover = NSPopover()
-    private var controller: AppController?
+    private var controller: HopAppModel?
     private var panel: PopoverController?
     func applicationDidFinishLaunching(_ notification: Notification) {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -14,10 +14,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         do {
             guard let url = Bundle.main.url(forResource: "keymap", withExtension: "json") else { throw WireError.invalid("Shared keymap resource missing; rebuild Hop") }
             let keymap = try Keymap.load(url: url)
-            let controller = try AppController(keymap: keymap)
+            let controller: HopAppModel
+            if CommandLine.arguments.contains("--legacy-transport") {
+                controller = try AppController(keymap: keymap)
+            } else {
+                controller = try SecureHostAppController(keymap: keymap)
+            }
             let panel = PopoverController(controller: controller)
             self.controller = controller; self.panel = panel
             popover.contentViewController = panel
+            panel.resizePopover = { [weak self] size in self?.popover.contentSize = size }
             controller.changed = { [weak panel, weak item, weak controller] in
                 panel?.refresh()
                 item?.button?.image = NSImage(systemSymbolName: controller?.input.mode == .remote ? "computermouse.fill" : "computermouse", accessibilityDescription: "Hop")
@@ -34,12 +40,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     @objc private func togglePopover() {
-        guard let button = item?.button else { return }
-        if popover.isShown { popover.performClose(nil) } else {
-            panel?.refresh()
-            NSApp.activate(ignoringOtherApps: true)
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        if popover.isShown { popover.performClose(nil) } else { showPopover() }
+    }
+    private func showPopover() {
+        guard let button = item?.button, !popover.isShown else { return }
+        if let panel {
+            _ = panel.view
+            panel.refresh()
+            popover.contentSize = panel.preferredContentSize
         }
+        NSApp.activate(ignoringOtherApps: true)
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+    }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showPopover()
+        return false
     }
     @objc private func quit() { NSApplication.shared.terminate(nil) }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply { controller?.quit(); return .terminateNow }
