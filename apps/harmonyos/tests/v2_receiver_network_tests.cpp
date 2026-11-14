@@ -114,8 +114,30 @@ int main(){
     check(host.send_input(leftEdge),"queue edge movement");
     for(int i=0;i<2000&&!edgeRequested;++i){check(pump.step(ms(started)),"edge progress");std::this_thread::sleep_for(std::chrono::milliseconds(1));}
     check(edgeRequested,"receiver requests return edge over TLS");
+    {
+        // Slot semantics, without the network: a value that lands before the
+        // actor collected the previous one replaces it instead of failing.
+        V2ClipboardMailbox box(1);box.begin(9,6,0);
+        ClipboardValue first{ClipboardFormat::text,1,9,{'1'}},second{ClipboardFormat::text,2,9,{'2'}},stale{ClipboardFormat::text,3,8,{'3'}};
+        check(!box.incoming(first,5),"mailbox refuses data before the actor is active");
+        check(box.activate(9)&&box.incoming(first,5)&&box.incoming(second,6),"a newer value replaces an uncollected one");
+        check(!box.incoming(stale,7),"another focus cannot write into the slot");
+        auto latest=box.takeIncoming(9);
+        check(latest&&latest->bytes==std::vector<std::uint8_t>{'2'}&&latest->baseline==6&&!box.takeIncoming(9),"only the newest value is delivered");
+        check(box.incoming(first,8)&&!box.takeIncoming(9),"a value may queue while one apply is still running");
+        box.finishIncoming(9);check(box.takeIncoming(9).has_value(),"the queued value follows once the apply finishes");
+    }
+    // The host copies twice before this side's clipboard actor wakes up. That
+    // used to fail the whole input session; now the newer value simply wins.
+    const std::vector<std::uint8_t> early={'p'},late={'q'};
+    check(host.clipboard_start(2,ClipboardFormat::text,early.size())&&host.clipboard_chunk(2,early.data(),early.size())&&
+          host.clipboard_start(3,ClipboardFormat::text,late.size())&&host.clipboard_chunk(3,late.data(),late.size()),"queue two updates back to back");
+    for(int i=0;i<300;++i){check(pump.step(ms(started)),"session survives back-to-back clipboard updates");std::this_thread::sleep_for(std::chrono::milliseconds(1));}
+    waitFor([&]{if(!received){if(auto value=mailbox->takeIncoming(43))received.emplace(std::move(*value));}return received.has_value();},"the newest clipboard value reaches the actor");
+    check(received->bytes==late&&host.phase()==v2::SessionPhase::active,"the newer copy replaced the uncollected one and focus is intact");
+    mailbox->finishIncoming(43);received.reset();
     const std::vector<std::uint8_t> next={'y'};
-    check(host.clipboard_start(2,ClipboardFormat::text,next.size())&&host.clipboard_chunk(2,next.data(),next.size()),"queue another update");
+    check(host.clipboard_start(4,ClipboardFormat::text,next.size())&&host.clipboard_chunk(4,next.data(),next.size()),"queue another update");
     waitFor([&]{if(!received){if(auto value=mailbox->takeIncoming(43))received.emplace(std::move(*value));}return received.has_value();},"a second clipboard apply is running");
     check(received->baseline==19,"subsequent update uses current receiver clipboard sequence");
     check(host.release(0)&&host.complete_release(ms(started)),"restore local ownership without waiting for blocked receiver actor");

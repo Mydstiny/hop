@@ -128,8 +128,12 @@ export class HopV2Vault {
         if (!alias.startsWith(PEER_PREFIX)) { continue; }
         const fingerprint = alias.substring(PEER_PREFIX.length);
         if (!validFingerprint(fingerprint)) { continue; }
-        const peer = await this.loadPeer(fingerprint);
-        if (peer) { peers.push(peer); }
+        // One unreadable record must not hide every other trusted computer,
+        // or the user could no longer see or forget any of them.
+        try {
+          const peer = await this.loadPeer(fingerprint);
+          if (peer) { peers.push(peer); }
+        } catch (_) { continue; }
       }
       return peers;
     } catch (error) {

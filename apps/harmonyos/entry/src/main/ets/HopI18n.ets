@@ -47,6 +47,11 @@ export function messageLabel(value: string): string {
     case 'Select a Mac; discovery alone never starts a new pairing.': return ui(value, '请选择一台 Mac；发现设备不会自动配对。');
     case 'A Mac could not be resolved. Use manual IP.': return ui(value, '无法解析 Mac 地址，请手动输入 IP。');
     case 'Unable to connect to Mac': return ui(value, '无法连接 Mac');
+    case 'Unable to resolve Mac address': return ui(value, '无法解析 Mac 地址，请检查输入的 IP');
+    case 'Mac rejected pairing or token': return ui(value, 'Mac 拒绝了配对请求或已保存的配对');
+    case 'Stored pairing rejected; pair again explicitly': return ui(value, '已保存的配对被拒绝，请重新配对');
+    case 'Pairing timed out': return ui(value, '配对超时');
+    case 'Unable to save pairing; connection canceled': return ui(value, '无法保存配对，连接已取消');
     case 'Injection permission must be granted before connection': return ui(value, '连接前请先授权输入控制');
     case 'Injection authorization revoked': return ui(value, '输入控制权限已撤销');
     case 'Heartbeat timeout': return ui(value, '连接超时');

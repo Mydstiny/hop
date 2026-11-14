@@ -64,13 +64,17 @@ export class HopClipboard {
       const packet = new ClipboardPacket();
       if (data.hasMimeType(pasteboard.MIMETYPE_PIXELMAP)) {
         const pixels = data.getPrimaryPixelMap();
-        const info = await pixels.getImageInfo();
-        if (!this.active(peer, epoch) || !permitted() || this.board.getChangeCount() !== sequence) { return undefined; }
-        if (info.size.width <= 0 || info.size.height <= 0 || info.size.width > 16384 || info.size.height > 16384 ||
-          info.size.width * info.size.height > MAX_PIXELS) { this.seen = sequence; return undefined; }
-        const packer = image.createImagePacker();
-        try { packet.png = await packer.packing(pixels, { format: 'image/png', quality: 100 }); }
-        finally { await packer.release(); }
+        // The decoded bitmap is native memory (up to ~160 MB) that the garbage
+        // collector barely notices; free it as soon as the PNG is encoded.
+        try {
+          const info = await pixels.getImageInfo();
+          if (!this.active(peer, epoch) || !permitted() || this.board.getChangeCount() !== sequence) { return undefined; }
+          if (info.size.width <= 0 || info.size.height <= 0 || info.size.width > 16384 || info.size.height > 16384 ||
+            info.size.width * info.size.height > MAX_PIXELS) { this.seen = sequence; return undefined; }
+          const packer = image.createImagePacker();
+          try { packet.png = await packer.packing(pixels, { format: 'image/png', quality: 100 }); }
+          finally { await packer.release(); }
+        } finally { try { await pixels.release(); } catch (_) {} }
         if (!safePngHeader(packet.png)) { this.seen = sequence; return undefined; }
         packet.kind = 'png';
       } else if (data.hasMimeType(pasteboard.MIMETYPE_TEXT_PLAIN)) {

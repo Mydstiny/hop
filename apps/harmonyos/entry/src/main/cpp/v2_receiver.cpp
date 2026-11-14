@@ -208,22 +208,25 @@ void V2Receiver::run(V2ReceiverConfig c) noexcept {
                     if(!clip->permitted(clipboardEpoch)||!session.clipboard_available())outgoing.reset();
                     else if(!outgoing && session.clipboard_has_room(20)){
                         if(auto packet=clip->takeOutgoing()){
-                            if(transferId==UINT64_MAX)break;
+                            if(transferId==UINT64_MAX){emit("error","Secure session disconnected",peerFingerprint);break;}
                             if(session.clipboard_start(++transferId,packet->format,static_cast<std::uint32_t>(packet->bytes.size()))&&!packet->bytes.empty()){
                                 outgoing.emplace(std::move(*packet));offset=0;
                             }
                         }
                     }
-                    if(outgoing){
+                    // Fill the bounded queue each pass; one chunk per 20 ms wake-up
+                    // made a large image take several seconds to leave.
+                    bool chunkFailed=false;
+                    while(outgoing){
                         auto remaining=outgoing->bytes.size()-offset;
                         auto count=std::min(remaining,max_clipboard_chunk-16);
-                        if(session.clipboard_has_room(count+16)){
-                            if(!session.clipboard_chunk(transferId,outgoing->bytes.data()+offset,count))break;
-                            offset+=count;if(offset==outgoing->bytes.size())outgoing.reset();
-                        }
+                        if(!session.clipboard_has_room(count+16))break;
+                        if(!session.clipboard_chunk(transferId,outgoing->bytes.data()+offset,count)){chunkFailed=true;break;}
+                        offset+=count;if(offset==outgoing->bytes.size())outgoing.reset();
                     }
+                    if(chunkFailed){emit("error","Secure session disconnected",peerFingerprint);break;}
                 } else outgoing.reset();
-                if(phase==v2::SessionPhase::release_ack_wait && clip->drained() && !session.complete_release(now))break;
+                if(phase==v2::SessionPhase::release_ack_wait && clip->drained() && !session.complete_release(now)){emit("error","Secure session disconnected",peerFingerprint);break;}
             }
             if(phase==v2::SessionPhase::active) {
                 if(edgeEpoch!=session.focus_epoch()) {edgeEpoch=session.focus_epoch();nextEdgeAt=0;}
@@ -242,6 +245,9 @@ void V2Receiver::run(V2ReceiverConfig c) noexcept {
             }
             if(session.pairing_confirmed()&&!pairedNotified){pairedNotified=true;emit("paired","Both devices confirmed",peerFingerprint);}
             if(phase==v2::SessionPhase::ready&&!announced&&(!session.pairing_confirmed()||storageConfirmed)){if(!session.advertise_screens(screenPayload(c.displays))){emit("error","Cannot advertise screens",peerFingerprint);break;}announced=true;}
+            // Edge requests, release acknowledgements, screen lists and clipboard
+            // frames queued above go out now, not after the next 20 ms wake-up.
+            if(!pump.flush()){if(!stopped_)emit("error","Secure session disconnected",peerFingerprint);break;}
             pollfd p{transport->native_fd(),POLLIN,0};int n=poll(&p,1,20);if(n<0&&errno!=EINTR){emit("error","Network polling failed",peerFingerprint);break;}
         }
         pump.stop();

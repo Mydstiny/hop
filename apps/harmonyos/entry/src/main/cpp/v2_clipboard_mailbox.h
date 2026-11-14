@@ -7,6 +7,9 @@
 namespace hop {
 // Single slot each way. The TLS worker never waits on an ArkTS job. The
 // clipboard actor must acknowledge revocation only once all writes have ended.
+// A value that arrives before ArkTS collected the previous one replaces it:
+// only the host's newest clipboard matters, and a slow apply must not cost
+// the input session.
 class V2ClipboardMailbox {
 public:
     struct Packet {
@@ -45,9 +48,16 @@ public:
         std::lock_guard<std::mutex> lock(mutex_);return valid(epoch)&&activated_;
     }
     bool incoming(const ClipboardValue& value,std::uint64_t baseline) {
+        {
+            // Refuse before copying what may be a 16 MiB image.
+            std::lock_guard<std::mutex> lock(mutex_);
+            if(!valid(value.epoch)||!activated_)return false;
+        }
         Packet copy;copy.format=value.format;copy.epoch=value.epoch;copy.baseline=static_cast<std::uint32_t>(baseline);copy.bytes=value.data;
+        std::optional<Packet> superseded; // wiped after the lock is released
         std::lock_guard<std::mutex> lock(mutex_);
-        if(!valid(value.epoch)||!activated_||incoming_)return false;
+        if(!valid(value.epoch)||!activated_)return false;
+        if(incoming_){superseded.emplace(std::move(*incoming_));incoming_.reset();}
         incoming_.emplace(std::move(copy));return true;
     }
     std::optional<Packet> takeIncoming(std::uint64_t epoch) {
