@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Dependency-free portable core on every supported compiler family.
+  core:
+    name: Portable core (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S core -B build/core -DBUILD_TESTING=ON
+      - name: Build
+        run: cmake --build build/core --config Release --parallel 2
+      - name: Test
+        run: ctest --test-dir build/core -C Release --output-on-failure
+
+  # Pinned mutual TLS, the POSIX socket pump and the HarmonyOS receiver against
+  # its recording fake SDK. Loopback and throwaway certificates only.
+  secure-transport:
+    name: Encrypted transport (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Strict-warning core and session tests
+        run: sh core/tests/run.sh
+      - name: TLS, session pump and HarmonyOS fake-SDK tests
+        run: sh core/tests/run_tls.sh
+
+  # The Linux client targets Ubuntu 22.04, so run its tests on that Python.
+  linux-client:
+    name: Linux client and tools (Ubuntu 22.04)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generated keymaps are current
+        run: |
+          python3 tools/generate_keymap.py --check
+          python3 tools/generate_hid_keymap.py --check
+      - name: Tool and v1 mock-peer tests
+        run: |
+          python3 -B tools/test_verify.py
+          python3 -B tools/test_device_preflight.py
+          python3 -B tools/test_resolve_xcode.py
+          python3 -B tools/test_xcode_project.py
+          python3 -B -m unittest discover -s tools/mock-peer
+      - name: Build the shared shortcut and clipboard runtimes
+        run: |
+          mkdir -p build/linux-runtime
+          g++ -std=c++17 -O2 -shared -fPIC -Icore/include \
+            core/src/input_policy.cpp core/src/shortcut_translator.cpp core/src/shortcut_translator_c.cpp \
+            -o build/linux-runtime/libhop_shortcut_runtime.so
+          g++ -std=c++17 -O2 -shared -fPIC -Icore/include \
+            core/src/clipboard_transfer.cpp core/src/clipboard_transfer_c.cpp \
+            -o build/linux-runtime/libhop_clipboard_runtime.so
+      - name: Linux client unit tests
+        working-directory: apps/linux
+        env:
+          HOP_TEST_SHORTCUT_LIBRARY: ${{ github.workspace }}/build/linux-runtime/libhop_shortcut_runtime.so
+          HOP_TEST_CLIPBOARD_LIBRARY: ${{ github.workspace }}/build/linux-runtime/libhop_clipboard_runtime.so
+        run: |
+          python3 --version
+          python3 -B -m compileall -q hop_linux packaging
+          python3 -B -m unittest discover -s tests -p 'test_*.py'
+
+  # Swift unit, loopback and C++/Swift parity tests. Nothing here launches Hop,
+  # captures input, or writes to the Keychain.
+  macos-app:
+    name: macOS app tests
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift core, transport and layout tests
+        run: bash apps/macos/scripts/test.sh
+      - name: v2 TLS bridge and coordinator loopback tests
+        run: bash apps/macos/scripts/test-v2-native.sh
+
+  # MinGW is the toolchain the Windows release is built with.
+  windows-app:
+    name: Windows app tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S apps/windows -B build/windows -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DBUILD_TESTING=ON -DHOP_WINDOWS_EXPERIMENTAL_TLS=ON
+      - name: Build
+        run: cmake --build build/windows --parallel 4
+      - name: Test
+        run: ctest --test-dir build/windows --output-on-failure --timeout 120

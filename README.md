@@ -1,5 +1,7 @@
 # Hop · 一套键鼠，穿越多台电脑
 
+[English](README.en.md)
+
 Hop 在同一局域网内共享键盘和鼠标。键鼠接在主控电脑上，把鼠标推过屏幕边缘，就能操作旁边的电脑。设备直接连接，无需 Hop 账号或云服务。
 
 [下载 v2.0.0-rc.1 预览版](https://github.com/Mydstiny/hop/releases/tag/v2.0.0-rc.1)
@@ -56,4 +58,4 @@ Hop 在同一局域网内共享键盘和鼠标。键鼠接在主控电脑上，�
 
 问题和功能建议请提交到 [GitHub Issues](https://github.com/Mydstiny/hop/issues)。涉及跨屏时，请注明主控与接收端的系统版本、相对位置和出问题的边缘。
 
-Hop 采用 [MIT 许可证](LICENSE)。依赖许可见 [第三方声明](THIRD_PARTY_NOTICES.md)。
+早期的双机 v1 见 [v1 说明](README.v1.md)。Hop 采用 [MIT 许可证](LICENSE)。依赖许可见 [第三方声明](THIRD_PARTY_NOTICES.md)。

@@ -1,9 +1,15 @@
-# Hop v2 portable core (work in progress)
+# Hop v2 portable core
 
-This isolated C++17 library contains layout geometry, a focus-transfer policy,
-and small input-setting transformations. It is **not connected** to the v1
-Mac or HarmonyOS applications, a network protocol, or physical input devices.
-It is not an installable product and does not establish real-device behavior.
+This C++17 library holds what every Hop 2 client shares: layout geometry, the
+focus-transfer policy, input-setting transformations, the HOP2 frame codec and
+payload validation, the session state machine with its C ABI, clipboard
+reassembly and, optionally, the certificate-pinned TLS channel. The macOS,
+Windows and HarmonyOS apps link it; the Linux client implements the same
+protocol in Python and loads the shortcut, clipboard and TLS parts as shared
+libraries. The legacy v1 code does not use it. The library has no access to
+physical input by itself, and passing its tests does not establish real-device
+behavior. Some sections below were written while a part was still isolated;
+[`docs/V2_SESSION.md`](../docs/V2_SESSION.md) is the current protocol reference.
 
 - `Layout` validates bounded, non-overlapping half-open rectangles and resolves
   edge crossings. Screen IDs must be unique across all devices. An uncovered
@@ -21,7 +27,8 @@ It is not an installable product and does not establish real-device behavior.
   In particular, redo keys and shifted app-specific shortcuts need further
   platform and application testing; no universal mapping is assumed.
 
-Run on macOS or Unix with a C++17 compiler:
+Run on macOS or Unix with a C++17 compiler. This builds with `-Wall -Wextra
+-Werror -pedantic` and covers the core, golden-vector, session and C ABI tests:
 
 ```sh
 sh core/tests/run.sh
@@ -35,10 +42,10 @@ cmake --build build/core --config Release
 ctest --test-dir build/core -C Release --output-on-failure
 ```
 
-The GitHub Actions matrix is configuration only until it runs on GitHub. The
-HarmonyOS ARM64 toolchain can cross-compile the static library, which does not
-show that it is integrated into or running on a device. Existing v1 code and
-its production build remain independent.
+GitHub Actions runs this matrix on every push, together with the TLS suite on
+Linux and macOS, the Linux client tests on Ubuntu 22.04, the macOS Swift and
+loopback tests, and the Windows app tests (see `.github/workflows/ci.yml`).
+Existing v1 code and its production build remain independent.
 
 ## Experimental authenticated transport
 
@@ -51,7 +58,10 @@ The ordinary core build remains dependency-free.
 Each connection requires its own certificate and private key plus the exact
 certificate of the previously verified peer. Both sides require certificate
 verification and pin the peer's exact certificate before application data can
-be read or written; a missing or changed pin fails closed. Certificate exchange,
+be read or written; a missing or changed pin fails closed. Because trust is
+that exact certificate, its validity dates are deliberately not enforced: two
+paired devices whose clocks disagree, or a device without a battery-backed
+clock, must still connect (`tests/tls_validity_tests.cpp`). Certificate exchange,
 user verification, secure identity persistence, socket timeouts, cancellation,
 session revocation, queue limits and application protocol framing are **not yet
 implemented**. In particular this code does not make the currently running v1
@@ -84,7 +94,10 @@ message schemas, clipboard assembly limits and authorization remain the
 caller's responsibilities. Each new TLS session requires a fresh decoder.
 
 `outbound_queue.h` gives control/input priority between clipboard chunks and
-bounds queued clipboard bytes. Input and control preserve their order with
+bounds queued clipboard bytes. An unsent pointer move is replaced by the next
+move for the same focus and screen, so a briefly stalled connection neither
+overflows on motion nor replays a stale trail afterwards; a move never passes
+a key, button, wheel or control frame. Input and control preserve their order with
 each other; clipboard control and chunks preserve theirs. A frame already in
 flight cannot be preempted, and implementations must enforce socket deadlines.
 An enqueue failure must produce backpressure or close safely, never silently

@@ -2,7 +2,7 @@
 
 > 产品方向已扩展为四平台、多设备键鼠及文本/图片剪贴板共享；详见[新版产品与开发计划](docs/plans/2026-11-09-cross-platform-product-plan.md)和[开发中的 v2 协议](docs/V2_SESSION.md)。下文主要描述已发布的 v1；四平台版本仍在开发，尚未发布或统一验收。
 
-[English](<README.en.md>) · [开发计划与真实验证记录](<PLAN.md>) · [线协议唯一规格](<docs/PROTOCOL.md>) · [双机验收清单](<docs/ACCEPTANCE.md>)
+[English](<README.v1.en.md>) · [开发计划与真实验证记录](<PLAN.md>) · [线协议唯一规格](<docs/PROTOCOL.md>) · [双机验收清单](<docs/ACCEPTANCE.md>)
 
 目前发布的 v1 将接在 Mac 上的键鼠共享给一台鸿蒙电脑，鼠标从约定的左/右边缘穿越，键盘随焦点切换。新版本正在扩展到 macOS、Windows、Linux 和鸿蒙，并支持多设备布局与剪贴板。
 
@@ -61,7 +61,7 @@ GitHub Release 里有两份包，许可证是 [MIT](LICENSE)。
 ## 工程结构
 
 ```text
-README.md / README.en.md
+README.md / README.en.md / README.v1.md / README.v1.en.md
 PLAN.md                       # 里程碑、失败与真实证据
  docs/PROTOCOL.md             # 唯一线协议
  docs/KEYMAP.md               # 从共享JSON生成的对照表
