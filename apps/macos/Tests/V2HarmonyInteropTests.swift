@@ -7,8 +7,8 @@ private final class InteropInputDelegate: V2InputRouterDelegate {
     var entryAccepted = false, acknowledged = false
     init(host: V2SessionBridge) { self.host = host }
     func requestV2Entry(screen: UInt64, x: UInt16, y: UInt16, captureEpoch: UInt32) { entryAccepted = host.enter(epoch: 43, screen: screen, x: x, y: y) }
-    func submitV2Input(_ payloads: [[UInt8]], focusEpoch: UInt64) -> Bool {
-        focusEpoch == 43 && payloads.allSatisfy { host.sendInput($0) }
+    func submitV2Input(_ payloads: [[UInt8]], focusEpoch: UInt64) -> V2InputAdmission {
+        focusEpoch == 43 && payloads.allSatisfy { host.sendInput($0) } ? .accepted : .rejected
     }
     func requestV2Release() { _ = host.release() }
     func acknowledgeV2Capture(_ message: Message) throws { acknowledged = true }

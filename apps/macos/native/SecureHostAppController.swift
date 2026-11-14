@@ -602,8 +602,12 @@ final class SecureHostAppController: HopAppModel, V2InputRouterDelegate {
     }
 
     func requestV2Entry(screen: UInt64, x: UInt16, y: UInt16, captureEpoch: UInt32) { host?.enter(peerFingerprint: peer?.fingerprint, screen: screen, x: x, y: y, captureEpoch: captureEpoch) }
-    func submitV2Input(_ payloads: [[UInt8]], focusEpoch: UInt64) -> Bool {
-        host?.submitInput(payloads, focusEpoch: focusEpoch) == true
+    func submitV2Input(_ payloads: [[UInt8]], focusEpoch: UInt64) -> V2InputAdmission {
+        switch host?.admitInput(payloads, focusEpoch: focusEpoch) {
+        case .accepted?: return .accepted
+        case .sealed?: return .closed
+        case .rejected?, nil: return .rejected
+        }
     }
     func requestV2Release() { host?.release() }
     func acknowledgeV2Capture(_ message: Message) throws { try input.acknowledge(message) }

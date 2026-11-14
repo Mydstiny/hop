@@ -33,11 +33,12 @@ private final class FakeV2InputDelegate: V2InputRouterDelegate {
     var entry: (UInt64, UInt16, UInt16)?
     var inputs: [([UInt8], UInt64)] = []
     var events: [String] = []
-    var accept = true, rejectAcknowledgement = false
+    var accept = true, rejectAcknowledgement = false, sealed = false
     var returnY: UInt16?
     func requestV2Entry(screen: UInt64, x: UInt16, y: UInt16, captureEpoch: UInt32) { entry = (screen,x,y) }
-    func submitV2Input(_ payloads: [[UInt8]], focusEpoch: UInt64) -> Bool {
-        inputs += payloads.map { ($0,focusEpoch) }; return accept
+    func submitV2Input(_ payloads: [[UInt8]], focusEpoch: UInt64) -> V2InputAdmission {
+        if sealed { return .closed }
+        inputs += payloads.map { ($0,focusEpoch) }; return accept ? .accepted : .rejected
     }
     func requestV2Release() { events.append("release") }
     func acknowledgeV2Capture(_ message: Message) throws { if rejectAcknowledgement { throw WireError.invalid("test") }; events.append("ack") }
@@ -275,6 +276,13 @@ private final class Fixture {
         fullRouter.selectedScreen = 7; fullRouter.captured(entryMessage); fullRouter.focused(epoch: 45, screen: 7, x: 123, y: 456)
         fullDelegate.accept = false; fullRouter.captured(Message(type: .key, epoch: 9, payload: [0,0,0,0,1,0]))
         expect(!fullRouter.isActive && Array(fullDelegate.events.suffix(2)) == ["restore","abort"], "input queue failure restores local control first")
+        let sealedDelegate = FakeV2InputDelegate(), sealedRouter = V2InputRouter(keymap: hid, delegate: sealedDelegate)
+        sealedRouter.selectedScreen = 7; sealedRouter.captured(entryMessage); sealedRouter.focused(epoch: 46, screen: 7, x: 123, y: 456)
+        sealedDelegate.sealed = true; sealedRouter.captured(Message(type: .key, epoch: 9, payload: [0,0,0,0,1,0]))
+        expect(!sealedRouter.isActive && sealedDelegate.inputs.isEmpty && sealedDelegate.events == ["ack","restore","release"],
+               "an event captured while focus is being released returns input locally without dropping the session")
+        sealedRouter.captured(Message(type: .key, epoch: 9, payload: [0,0,0,0,0,0]))
+        expect(Array(sealedDelegate.events.suffix(2)) == ["restore","abort"], "input for a focus the router no longer holds still fails closed")
         let heldDelegate = FakeV2InputDelegate(), heldRouter = V2InputRouter(keymap: hid, delegate: heldDelegate)
         heldRouter.selectedScreen = 7; heldRouter.captured(.point(.enter, epoch: 9, x: 0, y: 0, extra: [0,64,0,0]))
         expect(heldDelegate.entry == nil && heldDelegate.events == ["restore","abort"], "v2 router rejects a held modifier at entry")

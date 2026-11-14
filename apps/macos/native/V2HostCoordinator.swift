@@ -158,6 +158,8 @@ final class V2HostCoordinator {
     private var focus: Focus?
     private var focusPublished = false
     private var releaseAfterEnter = false
+    /// RELEASE is waiting for a partly written TLS record to finish.
+    private var releaseDeferred = false
     private var leaveRequested: Position?
     private var clipboardFocus: ClipboardFocus?
     private var clipboardRevocation: UUID?
@@ -308,7 +310,17 @@ final class V2HostCoordinator {
     /// before requesting entry and again before suppressing local input.
     func enter(peerFingerprint: String? = nil, screen: UInt64, x: UInt16, y: UInt16, captureEpoch: UInt32? = nil) {
         queue.async { [weak self] in
-            guard let self, self.focus == nil else { return }
+            guard let self else { return }
+            guard self.focus == nil else {
+                // The previous focus is still draining its release. The input
+                // side has already marked this capture pending; hand it back
+                // now instead of leaving the pointer frozen until its timeout,
+                // and make sure that earlier focus really is on its way out.
+                _ = self.restore(nil)
+                self.emit(.localFocus(nil))
+                self.releaseOnQueue()
+                return
+            }
             let candidates = self.connections.values.filter { candidate in
                 (peerFingerprint == nil || peerFingerprint == candidate.peer.fingerprint) &&
                     candidate.announcedScreens?.contains(where: { $0.id == screen }) == true
@@ -366,21 +378,28 @@ final class V2HostCoordinator {
     /// balanced key tap or one regular event is accepted per submission.
     @discardableResult
     func submitInput(_ payloads: [[UInt8]], focusEpoch: UInt64) -> Bool {
+        admitInput(payloads, focusEpoch: focusEpoch) == .accepted
+    }
+    enum InputAdmission { case accepted, sealed, rejected }
+    /// As `submitInput`, but tells a focus that has merely stopped admitting
+    /// input (`sealed`: release or return in progress) apart from input that
+    /// could not be queued (`rejected`: the connection is being closed).
+    func admitInput(_ payloads: [[UInt8]], focusEpoch: UInt64) -> InputAdmission {
         gate.lock()
         defer { gate.unlock() }
-        guard admittedEpoch == focusEpoch else { return false }
+        guard admittedEpoch == focusEpoch else { return .sealed }
         guard pendingInput < 64, payloads.count <= 2, payloads.allSatisfy({ (1...20).contains($0.count) }) else {
             admittedEpoch = nil
             queue.async { [weak self] in
                 guard let self, self.focus?.epoch == focusEpoch else { return }
                 self.closeConnection(failure: "v2 input queue exhausted or invalid")
             }
-            return false
+            return .rejected
         }
-        if payloads.isEmpty { return true }
+        if payloads.isEmpty { return .accepted }
         pendingInput += 1
         queue.async { [weak self] in self?.sendInputOnQueue(payloads, epoch: focusEpoch) }
-        return true
+        return .accepted
     }
 
     private func startOnQueue(port: UInt16) {
@@ -616,7 +635,7 @@ final class V2HostCoordinator {
                 }
             }
             if self.connection === connection {
-                if releaseAfterEnter || leaveRequested != nil {
+                if releaseAfterEnter || releaseDeferred || leaveRequested != nil {
                     releaseOnQueue(pumpImmediately: false)
                 } else if let focus, !focusPublished, session.phase == Phase.active.rawValue {
                     gate.lock()
@@ -691,8 +710,16 @@ final class V2HostCoordinator {
             releaseAfterEnter = true
             return
         }
-        guard session.phase == Phase.active.rawValue else { return }
-        releaseAfterEnter = false
+        guard session.phase == Phase.active.rawValue else { releaseDeferred = false; return }
+        if session.hasPendingWrite {
+            // A record that is half on the wire (often a clipboard slice) has to
+            // finish before RELEASE can follow it. That takes a moment, not a
+            // reconnect: the pump retries as soon as the socket drains, and the
+            // heartbeat deadline still bounds a peer that never reads.
+            releaseDeferred = true
+            return
+        }
+        releaseAfterEnter = false; releaseDeferred = false
         guard session.release() else {
             closeConnection()
             return
@@ -717,7 +744,7 @@ final class V2HostCoordinator {
     }
 
     private func restoreFocus(notify: Bool = true) -> Bool {
-        releaseAfterEnter = false
+        releaseAfterEnter = false; releaseDeferred = false
         guard focus != nil else { return true }
         sealInput()
         focus = nil

@@ -22,12 +22,19 @@ if [[ ! -f "$P12" ]]; then
   openssl pkcs12 -export -legacy -macalg SHA1 -inkey "$KEY" -in "$CRT" -out "$P12" -passout "pass:$PASS"
 fi
 if [[ ! -f "$KC" ]]; then
-  saved="$(mktemp)"
-  security list-keychains -d user | sed -e 's/^[[:space:]]*//' -e 's/"//g' > "$saved"
+  # create-keychain inserts itself into the user search list. Restore the previous
+  # list exactly, one path per line, so a path with spaces stays one argument and
+  # a failure part-way through cannot leave Hop's keychain in the list.
+  previous=()
+  while IFS= read -r line; do
+    line="${line#"${line%%[![:space:]]*}"}"; line="${line#\"}"; line="${line%\"}"
+    [[ -n "$line" ]] && previous+=("$line")
+  done < <(security list-keychains -d user)
+  restore_keychains() { if (( ${#previous[@]} )); then security list-keychains -d user -s "${previous[@]}"; fi; }
+  trap restore_keychains EXIT
   security create-keychain -p "$PASS" "$KC"
-  # create-keychain inserts itself into the user search list. Restore the previous list exactly.
-  security list-keychains -d user -s $(cat "$saved")
-  rm -f "$saved"
+  restore_keychains
+  trap - EXIT
   security set-keychain-settings -lut 21600 "$KC"
   security unlock-keychain -p "$PASS" "$KC"
   security import "$P12" -k "$KC" -P "$PASS" -T /usr/bin/codesign -T /usr/bin/security

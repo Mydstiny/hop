@@ -134,6 +134,8 @@ final class V2SessionBridge {
     /// True after a pump observes both the TLS write and session queue drained.
     /// Pairing persistence must wait for a pump after queuing PAIR_CONFIRM.
     private(set) var drainedWrites = false
+    /// True while part of a TLS record is still waiting for the socket.
+    var hasPendingWrite: Bool { transport.hasPendingWrite }
     var needsWriteReadiness: Bool {
         transport.retryWriteWhenWritable || (!transport.hasPendingWrite && !drainedWrites)
     }

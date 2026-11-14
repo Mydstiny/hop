@@ -1,6 +1,7 @@
 import AppKit
 import ApplicationServices
 import IOKit
+import os
 
 protocol PointerSettingsStore {
     func data(forKey key: String) -> Data?
@@ -148,6 +149,7 @@ final class InputCapture {
     private var tapUsable = false
     private(set) var generation: UInt64 = 0
     private var cooldownUntil: TimeInterval = 0
+    private var nextTapCheck: TimeInterval = 0
     private var insideSince: TimeInterval = 0
     private var wheelDiagnostics = Set<UInt8>()
     var ignoredEventSourceUserData: Int64?
@@ -362,6 +364,22 @@ final class InputCapture {
         changed()
     }
     func tick() {
+        // While this Mac's input is routed away, the tap is the only way back:
+        // it carries the return edge and the emergency shortcut. macOS can
+        // disable it (slow callback, revoked permission) without a callback we
+        // can rely on, which would leave the pointer hidden and pinned.
+        if mode != .local, let tap, monotonicNow() >= nextTapCheck {
+            nextTapCheck = monotonicNow() + 0.25
+            if !CGEvent.tapIsEnabled(tap: tap) {
+                CGEvent.tapEnable(tap: tap, enable: true)
+                if !CGEvent.tapIsEnabled(tap: tap) {
+                    tapUsable = false; InputCapture.noteTapLost()
+                    restoreAndReportFault("Global event tap stopped; re-enable Hop after checking permissions", reason: 3)
+                    return
+                }
+                hopLog("event tap found disabled — re-enabled")
+            }
+        }
         if mode == .remote { freezeLocalCursor() }
         if mode == .local, hidden || disassociated || appKitHidden || !extraHiddenDisplays.isEmpty { restore() } // retry failed native restoration, never re-enable swallowing
         if mode == .pending, monotonicNow() - enteredAt >= 1.0 {
@@ -536,7 +554,7 @@ final class InputCapture {
             if groups & group != 0 { flags.remove(flag) }
         }
         if let functionCode, ownership.remoteKeys.contains(functionCode) { flags.remove(.maskSecondaryFn) }
-        event.flags = flags
+        if flags != event.flags { event.flags = flags }
     }
     private func handlePhysical(_ type: CGEventType, event: CGEvent) -> Bool {
         let key = UInt16(clamping: event.getIntegerValueField(.keyboardEventKeycode))
@@ -637,13 +655,11 @@ final class InputCapture {
     }
 }
 
+private let hopLogger = Logger(subsystem: "local.hop.macos", category: "session")
+/// Diagnostics go to the unified log, which is cheap enough for the event-tap
+/// callback and involves no file another local user could pre-create. Read with
+/// `log stream --predicate 'subsystem == "local.hop.macos"'`. Messages hold
+/// state names and pointer coordinates only, never keys or clipboard contents.
 func hopLog(_ message: String) {
-    let line = "\(Date()) \(message)\n"
-    let url = URL(fileURLWithPath: "/tmp/hop-cross.log")
-    guard let data = line.data(using: .utf8) else { return }
-    if FileManager.default.fileExists(atPath: url.path), let handle = try? FileHandle(forWritingTo: url) {
-        handle.seekToEndOfFile(); handle.write(data); try? handle.close()
-    } else {
-        try? data.write(to: url)
-    }
+    hopLogger.notice("\(message, privacy: .public)")
 }

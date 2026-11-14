@@ -292,6 +292,10 @@ import ImageIO
         }
         check(journal.restores == [expected] && receiver.heldKeys.isEmpty, "return restores local position before peer releases its held key")
         check(!host.submitInput([up], focusEpoch: focus.epoch), "released focus rejects input")
+        check(host.admitInput([up], focusEpoch: focus.epoch) == .sealed,
+              "input captured during a return is reported as a closed focus, not as a failed connection")
+        check(host.admitInput([[UInt8]](repeating: up, count: 3), focusEpoch: focus.epoch) == .sealed,
+              "a released focus never reports a queue fault")
         mark = journal.mark
         host.enter(screen: 7, x: 0, y: 0)
         _ = try event(since: mark) { if case .localFocus(nil) = $0 { return true }; return nil }

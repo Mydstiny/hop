@@ -2,9 +2,19 @@ import Foundation
 
 /// UI/input-side adapter. The delegate queues network commands without waiting;
 /// all router calls are made on the same executor as the physical event tap.
+enum V2InputAdmission {
+    /// Queued for the focused computer.
+    case accepted
+    /// That focus is no longer admitting input: it is being released or was
+    /// already closed. Expected for the event or two captured while a return
+    /// to this Mac is in progress.
+    case closed
+    /// The input could not be queued or was malformed.
+    case rejected
+}
 protocol V2InputRouterDelegate: AnyObject {
     func requestV2Entry(screen: UInt64, x: UInt16, y: UInt16, captureEpoch: UInt32)
-    func submitV2Input(_ payloads: [[UInt8]], focusEpoch: UInt64) -> Bool
+    func submitV2Input(_ payloads: [[UInt8]], focusEpoch: UInt64) -> V2InputAdmission
     func requestV2Release()
     func acknowledgeV2Capture(_ message: Message) throws
     func restoreV2Capture(y: UInt16?)
@@ -37,7 +47,18 @@ final class V2InputRouter {
         guard let active, active.captureEpoch == message.epoch else { fail(); return }
         do {
             let payloads = try V2CapturedInput.payloads(message, screen: active.screen, keys: keymap)
-            guard delegate.submitV2Input(payloads, focusEpoch: active.focusEpoch) else { fail(); return }
+            switch delegate.submitV2Input(payloads, focusEpoch: active.focusEpoch) {
+            case .accepted: break
+            case .closed:
+                // The session worker sealed this focus (edge return, release)
+                // an instant before this event was captured. Hand input back to
+                // this Mac and make sure the release goes out; the connection
+                // itself is healthy and must stay up.
+                pending = nil; self.active = nil
+                delegate.restoreV2Capture(y: nil)
+                delegate.requestV2Release()
+            case .rejected: fail()
+            }
         } catch { fail() }
     }
     /// Called after remote ENTER_ACK. A stale/mismatched event must never
