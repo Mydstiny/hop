@@ -55,7 +55,9 @@ bool Session::enable_clipboard(std::function<std::optional<std::uint64_t>()> seq
                                std::function<bool(const hop::ClipboardValue&,std::uint64_t)> apply, bool allow_text, bool allow_png) {
     if (phase_!=SessionPhase::initial || !sequence || !apply || !callbacks_.clipboard_revoke || (!allow_text && !allow_png) || clipboard_sequence_) return false;
     clipboard_sequence_=std::move(sequence); clipboard_apply_=std::move(apply);
-    if (allow_text) local_caps_|=2; if (allow_png) local_caps_|=4; return true;
+    if (allow_text) local_caps_|=2;
+    if (allow_png) local_caps_|=4;
+    return true;
 }
 bool Session::bind_verified_peer(std::string fingerprint) {
     if (phase_!=SessionPhase::initial || !peer_fingerprint_.empty() || fingerprint.size()!=64 ||
