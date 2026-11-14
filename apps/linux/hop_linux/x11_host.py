@@ -2,7 +2,8 @@
 
 No capture is started by importing this module. The controller must establish
 and ACK focus first and must ensure no physical keys/buttons are held at entry.
-Unsupported keys, queue overflow, stalled pumping and capture errors fail closed.
+Queue overflow, stalled pumping and capture errors fail closed. A key with no
+shared mapping is dropped together with its release.
 """
 from collections import deque
 import threading
@@ -63,6 +64,11 @@ class X11Host:
             backend.warp(*self.center)
             self.started.set()
             pending_motion=None;last_motion=0.0;last_edge=None
+            # Position of the previous motion event. A batch holds every event
+            # the server queued before it saw our recentering warp, and those
+            # coordinates continue from one another, not from the centre.
+            last=self.center
+            dropped=set() # physical keys with no shared mapping, until released
             def flush_motion():
                 nonlocal pending_motion,last_motion
                 if pending_motion is not None:
@@ -71,21 +77,33 @@ class X11Host:
                 if time.monotonic()-self.last_pump>self.watchdog: raise RuntimeError('host pump stalled')
                 for event in backend.events():
                     if event.kind=='motion':
-                        if (event.x,event.y)==self.center: continue
-                        dx,dy=self.profile.move(event.x-self.center[0],event.y-self.center[1])
+                        if (event.x,event.y)==self.center: last=self.center;continue # our warp arrived
+                        moved=(event.x-last[0],event.y-last[1]);last=(event.x,event.y)
+                        if moved==(0,0): continue
+                        dx,dy=self.profile.move(*moved)
                         raw=(self.pos[0]+dx,self.pos[1]+dy)
                         direction=('left' if dx<0 and raw[0]<0 else 'right' if dx>0 and raw[0]>self.target_size[0]-1 else
                                    'up' if dy<0 and raw[1]<0 else 'down' if dy>0 and raw[1]>self.target_size[1]-1 else None)
                         for i,value in enumerate(raw):self.pos[i]=max(0,min(self.target_size[i]-1,value))
-                        x,y=self._coords();pending_motion=dict(screen_id=self.screen_id,x=x,y=y);backend.warp(*self.center)
+                        x,y=self._coords();pending_motion=dict(screen_id=self.screen_id,x=x,y=y)
                         if direction in self.edge_directions and direction!=last_edge:
                             flush_motion();self._push('edge',dict(direction=direction,x=x,y=y,clear=not keys.held and not self.buttons));last_edge=direction
                         elif direction is None:last_edge=None
                     elif event.kind=='key':
                         flush_motion() # never reorder movement after a key/button
+                        if event.code in dropped:
+                            if not event.down: dropped.discard(event.code)
+                            continue
                         repeat=event.down and event.code in keys.held
                         usage=keys.press(event.code) if event.down else keys.release(event.code)
-                        if usage is None: raise RuntimeError('unsupported or inconsistent key')
+                        if usage is None:
+                            # Volume, media and vendor keys have no shared mapping.
+                            # The grab already keeps them off the local desktop;
+                            # drop the press and its release rather than ending
+                            # the session. A release with no forwarded press has
+                            # nothing to undo on the remote either.
+                            if event.down: dropped.add(event.code)
+                            continue
                         if usage in _MOD_BITS:
                             bit=1<<_MOD_BITS[usage];self.mods=(self.mods|bit) if event.down else (self.mods&~bit)
                         if usage==0x29 and event.down and self.mods&3 and self.mods&12 and self.mods&48:
@@ -106,6 +124,8 @@ class X11Host:
                         if bool(self.buttons&bit)==event.down: raise RuntimeError('inconsistent button')
                         self.buttons=(self.buttons|bit) if event.down else (self.buttons&~bit)
                         x,y=self._coords();self._push('button',dict(screen_id=self.screen_id,x=x,y=y,button=button,down=int(event.down),buttons=self.buttons))
+                # Recentre once per batch so the pointer cannot reach a screen edge.
+                if last!=self.center: backend.warp(*self.center)
                 if pending_motion is not None and time.monotonic()-last_motion>=1/self.profile.forward_hz:flush_motion()
                 self.stop.wait(max(.001,min(.01,1/self.profile.forward_hz/2)))
         except BaseException as exc:self.error=exc

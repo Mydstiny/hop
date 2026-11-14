@@ -44,6 +44,41 @@ class FrameTests(unittest.TestCase):
             with self.assertRaises(ProtocolError): encode_frame(*args)
 
 class SessionTests(unittest.TestCase):
+    def test_host_tolerates_receiver_edge_leave_requests(self):
+        host,receiver=pair()
+        try:
+            seen=[];host.on_leave=seen.append
+            leave=lambda epoch,screen=1:receiver._control('request_leave',epoch,screen_id=screen,x=65535,y=7)
+            host.enter(1);receiver.poll();host.poll();first=host.epoch
+            leave(first);host.poll()
+            self.assertEqual((seen,host.phase,host.closed),([dict(screen_id=1,x=65535,y=7)],'remote',False))
+            # Copies still in flight after the host released are ignored, as is
+            # one from the previous focus once a new focus is active.
+            leave(first);host.release();host.poll()
+            self.assertEqual((len(seen),host.phase,host.closed),(1,'releasing',False))
+            receiver.poll();host.poll();self.assertEqual(host.phase,'local')
+            leave(first);host.poll();self.assertFalse(host.closed)
+            host.enter(1);receiver.poll();host.poll();leave(first);host.poll()
+            self.assertEqual((len(seen),host.phase,host.closed),(1,'remote',False))
+            host.on_leave=None;leave(host.epoch);host.poll();self.assertEqual((len(seen),host.phase),(1,'remote'))
+            # A request for a screen that does not hold focus, or for a focus the
+            # host never granted, is still a protocol violation.
+            leave(host.epoch,screen=2)
+            with self.assertRaises(ProtocolError):host.poll()
+        finally:host.close();receiver.close()
+        host,receiver=pair()
+        try:
+            host.enter(1);receiver.poll();host.poll()
+            receiver._control('request_leave',host.epoch+1,screen_id=1,x=0,y=0)
+            with self.assertRaises(ProtocolError):host.poll()
+        finally:host.close();receiver.close()
+        host,receiver=pair()
+        try:
+            host.enter(1);receiver.poll();host.poll()
+            host._control('request_leave',host.epoch,screen_id=1,x=0,y=0)
+            with self.assertRaises(ProtocolError):receiver.poll()
+        finally:host.close();receiver.close()
+
     def test_release_waits_for_both_clipboard_barriers(self):
         class Barrier:
             supported_capabilities=2

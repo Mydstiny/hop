@@ -23,6 +23,8 @@ class X11HostProcess:
         self.process=None;self.session=None;self.reader=None;self.error=None;self.started=threading.Event()
         self.translator=translator
         self.on_edge=on_edge
+        # False only between starting the grabbing child and confirming it exited.
+        self.grab_released=True
         self.events=queue.Queue(maxsize=256);self.last_tick=0
 
     def start(self, session):
@@ -31,6 +33,7 @@ class X11HostProcess:
             not getattr(getattr(session,'transport',None),'authenticated',False)):
             raise RuntimeError('authenticated acknowledged session required')
         self.session=session
+        self.grab_released=False
         self.process=subprocess.Popen([sys.executable,'-B','-m','hop_linux.capture_worker'],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,bufsize=0)
         try:
             self.process.stdin.write((json.dumps(self.config)+'\n').encode())
@@ -106,6 +109,9 @@ class X11HostProcess:
                     child.terminate()
                     try:child.wait(timeout=.5)
                     except subprocess.TimeoutExpired:child.kill();child.wait(timeout=1)
+            # The X server drops a client's grabs when it exits, so local input
+            # is back once the child is known to be gone.
+            self.grab_released=True
         finally:
             for stream in (child.stdin,child.stdout):
                 try:stream.close()

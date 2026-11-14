@@ -280,6 +280,7 @@ class GtkPairingWindow(GtkPanel):
                 elif kind=='profile_saved':self._set_status('当前设备设置已保存')
                 elif kind=='profile_error':self._set_status('设备设置保存失败')
                 elif kind=='focus_busy':self._set_status('另一台设备正在使用键鼠，请先返回本机。');self._selected()
+                elif kind=='input_busy':self._set_status('请先松开所有按键和鼠标键，并关闭大写锁定，再开始控制。');self._selected()
                 elif kind=='layout_changed':self.gtk.gtk_widget_set_sensitive(self.layout_button,bool(self.controller.layout and self.controller.state=='connected'))
                 elif kind=='layout_error':self._set_status('无法读取或构建设备布局')
                 elif kind=='error':self._set_status(item.get('message','连接失败'))

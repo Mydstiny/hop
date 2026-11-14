@@ -82,6 +82,9 @@ class Session:
         self.buttons = 0; self.keys = set(); self._clock = clock or time.monotonic
         self.screens = ()
         self.focus_deadline = None
+        # Optional host hook: called with a receiver's edge-leave request for the
+        # current focus. Leaving it unset ignores such requests.
+        self.on_leave = None
         self._barrier_deadline=None;self._release_ack=False
         self.pairing_deadline = None; self._pair_local = False; self._pair_remote = False
         self.pairing_confirmed = False
@@ -268,6 +271,16 @@ class Session:
                 if self._clip_paused:return # Simultaneous PAUSE is idempotent.
                 self._clip_paused=True;self._clip_local_ready=False;self._clip_peer_ready=False
                 self._focus_clipboard(0);return
+            if self.role == 'host' and event == 'request_leave' and self.session_epoch < epoch <= self.epoch:
+                # HarmonyOS, macOS and Windows receivers send this when the injected
+                # pointer reaches a screen edge, and repeat it while it stays there.
+                # This host already decides crossings from its own capture, so the
+                # request is advisory, and a copy that arrives after RELEASE or for
+                # an earlier focus is expected. None of that may end the session.
+                if self.phase == 'remote' and epoch == self.epoch:
+                    if fields['screen_id'] != self.screen_id: raise ProtocolError('leave request for an inactive screen')
+                    if self.on_leave: self.on_leave(fields)
+                return
             if self.role == 'host' and event == 'screens' and epoch == self.session_epoch:
                 if self.phase != 'local': raise ProtocolError('screens changed during active focus')
                 self.screens = tuple(fields['screens']); return

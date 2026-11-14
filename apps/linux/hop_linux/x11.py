@@ -116,14 +116,30 @@ def _bind(library, name, restype, *args):
     return func
 
 
+_LIBRARIES = {}
+
+
+def _library(name):
+    """Resolve and load a shared library once per process.
+
+    ctypes.util.find_library runs ldconfig in a subprocess on every call. The
+    receiver asks for the monitor list twice a second and checks held buttons
+    on every focus entry, so an uncached lookup stalls the injection thread.
+    """
+    library = _LIBRARIES.get(name)
+    if library is None:
+        path = ctypes.util.find_library(name)
+        if not path: return None
+        library = _LIBRARIES[name] = C.CDLL(path)
+    return library
+
+
 class _Native:
     def __init__(self):
-        x11 = ctypes.util.find_library("X11")
-        xtst = ctypes.util.find_library("Xtst")
-        if not x11 or not xtst:
+        self.x = _library("X11")
+        self.xt = _library("Xtst")
+        if not self.x or not self.xt:
             raise RuntimeError("X11 and XTest runtime libraries are required")
-        self.x = C.CDLL(x11)
-        self.xt = C.CDLL(xtst)
         P, W, I, U, T = C.c_void_p, C.c_ulong, C.c_int, C.c_uint, C.c_ulong
         _bind(self.x, "XOpenDisplay", P, C.c_char_p)
         _bind(self.x, "XCloseDisplay", I, P)
@@ -187,9 +203,8 @@ class _Native:
     def warp(self, display, root, x, y): self.x.XWarpPointer(display, 0, root, 0, 0, 0, 0, x, y)
     def screens(self, display, root):
         P,W,I=C.c_void_p,C.c_ulong,C.c_int
-        name=ctypes.util.find_library('Xrandr')
-        if not name:raise RuntimeError('Xrandr is required for monitor enumeration')
-        rr=C.CDLL(name)
+        rr=_library('Xrandr')
+        if not rr:raise RuntimeError('Xrandr is required for monitor enumeration')
         _bind(rr,'XRRQueryVersion',I,P,C.POINTER(I),C.POINTER(I))
         _bind(rr,'XRRGetMonitors',C.POINTER(_RRMonitor),P,W,I,C.POINTER(I))
         _bind(rr,'XRRFreeMonitors',None,C.POINTER(_RRMonitor))
@@ -219,9 +234,8 @@ class _Native:
         if any(keys.raw) or mask.value & ((0x1f << 8) | (1 << 1)): return False
         # XI2 includes side buttons and attached devices absent from the core
         # pointer mask. Refuse capture when the extension cannot be checked.
-        name = ctypes.util.find_library("Xi")
-        if not name: raise RuntimeError("XI2 is required to check held buttons")
-        xi = C.CDLL(name)
+        xi = _library("Xi")
+        if not xi: raise RuntimeError("XI2 is required to check held buttons")
         _bind(xi, "XIQueryVersion", C.c_int, C.c_void_p, C.POINTER(C.c_int), C.POINTER(C.c_int))
         _bind(xi, "XIQueryDevice", C.POINTER(_XIDeviceInfo), C.c_void_p, C.c_int, C.POINTER(C.c_int))
         _bind(xi, "XIFreeDeviceInfo", None, C.POINTER(_XIDeviceInfo))

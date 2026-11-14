@@ -6,12 +6,17 @@ from hop_linux.x11 import Event
 from hop_linux.profiles import PointerProfile
 
 class FakeBackend:
-    def __init__(self): self.pending=[];self.grabbed=False;self.closed=False
+    def __init__(self): self.pending=[];self.grabbed=False;self.closed=False;self.warped=None;self.warps=0
     def keymap(self): return KeyMap.from_names({38:'AC01',50:'LFSH',62:'RTSH',37:'LCTL',64:'LALT',9:'ESC'})
     def grab(self): self.grabbed=True
     def input_state_clear(self): return True
-    def warp(self,*a): pass
-    def events(self): result=self.pending[:];self.pending.clear();return result
+    # Like the X server: a warp is answered with one motion event at the target,
+    # delivered after anything that was already queued.
+    def warp(self,x,y): self.warped=(x,y);self.warps+=1
+    def events(self):
+        result=self.pending[:];self.pending.clear()
+        if self.warped: result.insert(0,Event('motion',x=self.warped[0],y=self.warped[1]));self.warped=None
+        return result
     def ungrab(self): self.grabbed=False
     def close(self): self.closed=True
 
@@ -33,6 +38,33 @@ class HostTests(unittest.TestCase):
             self.assertEqual(session.events[-2][1]['button'],4)
         finally:host.restore_local()
         self.assertFalse(backend.grabbed);self.assertTrue(backend.closed)
+    def test_batched_motion_is_measured_from_the_previous_event(self):
+        # Three reports the server queued before it processed any recentering:
+        # their coordinates are cumulative, so the travel is 30, not 10+20+30.
+        backend=FakeBackend();host=X11Host(screen_id=1,target_size=(1001,1001),capture_center=(500,500),initial=(0,0),backend_factory=lambda:backend)
+        session=FakeSession();host.start(acknowledged=True,input_state_clear=True)
+        try:
+            backend.pending.extend([Event('motion',x=510,y=500),Event('motion',x=520,y=505),Event('motion',x=530,y=510)])
+            time.sleep(.06);host.pump(session)
+            self.assertEqual(host.pos,[30,10]);self.assertEqual(backend.warps,2) # one at start, one for the batch
+            # After the warp is answered, motion is measured from the centre again.
+            backend.pending.extend([Event('motion',x=495,y=500),Event('motion',x=490,y=500)])
+            time.sleep(.06);host.pump(session)
+            self.assertEqual(host.pos,[20,10])
+            moves=[fields for event,fields in session.events if event=='move']
+            self.assertEqual((moves[-1]['x'],moves[-1]['y']),(round(20*65535/1000),round(10*65535/1000)))
+        finally:host.restore_local()
+    def test_key_without_shared_mapping_is_dropped_not_fatal(self):
+        backend=FakeBackend();host=X11Host(screen_id=1,target_size=(100,100),capture_center=(50,50),backend_factory=lambda:backend)
+        session=FakeSession();host.start(acknowledged=True,input_state_clear=True)
+        try:
+            # 122 has no entry in this keymap (think volume-down); 38 is A.
+            backend.pending.extend([Event('key',code=122,down=True),Event('key',code=122,down=True),Event('key',code=38,down=True),
+                                    Event('key',code=122,down=False),Event('key',code=38,down=False),Event('key',code=123,down=False)])
+            time.sleep(.06);host.pump(session)
+            self.assertIsNone(host.error);self.assertTrue(backend.grabbed)
+            self.assertEqual([(e,f['usage'],f['down']) for e,f in session.events],[('key',4,1),('key',4,0)])
+        finally:host.restore_local()
     def test_watchdog_restores_without_network_thread(self):
         backend=FakeBackend();host=X11Host(screen_id=1,target_size=(100,100),capture_center=(50,50),backend_factory=lambda:backend,watchdog=.1)
         host.start(acknowledged=True,input_state_clear=True);time.sleep(.2)

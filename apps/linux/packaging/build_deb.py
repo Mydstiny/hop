@@ -87,7 +87,7 @@ Priority: optional
 Architecture: {ARCHITECTURE}
 Maintainer: Hop maintainers <Mydstiny@users.noreply.github.com>
 Homepage: https://github.com/Mydstiny/hop
-Depends: python3 (>= 3.10), python3-gi, python3-dbus, gir1.2-secret-1, libgtk-3-0, libx11-6, libxtst6, libxi6, libxrandr2, libxfixes3, libgdk-pixbuf-2.0-0, libc6 (>= 2.35), libgcc-s1
+Depends: python3 (>= 3.10), python3-gi, python3-dbus, gir1.2-secret-1, libgtk-3-0, libx11-6, libxtst6, libxi6, libxrandr2, libxfixes3, libgdk-pixbuf-2.0-0, libc6 (>= 2.35), libgcc-s1, libstdc++6
 Recommends: avahi-daemon, gnome-keyring, fonts-noto-cjk
 Description: Share keyboard, pointer and clipboard across paired devices on X11
  Hop connects paired devices over a local network using mutually authenticated

@@ -182,7 +182,7 @@ class PairingController:
             self._serve_host_session(session,candidate.name,hint)
         except BaseException as exc:
             self.last_error=type(exc).__name__
-            if self.host_group and (self.active_capture or self.returning_local):self.host_group.authority.poison()
+            if self.host_group and self._local_input_unrecovered():self.host_group.authority.poison()
             self._event({'type':'error','message':'配对或连接失败，请检查设备与网络。'})
         finally:
             self._close_edge_observer();self.edge_enabled=False
@@ -207,7 +207,7 @@ class PairingController:
             self._serve_host_session(session,hint.name,hint)
         except BaseException as exc:
             self.last_error=type(exc).__name__
-            if self.host_group and (self.active_capture or self.returning_local):self.host_group.authority.poison()
+            if self.host_group and self._local_input_unrecovered():self.host_group.authority.poison()
             if not self.stopping.is_set():self._event({'type':'error','message':'重连失败；请检查信任记录或重新配对。'})
         finally:
             self._close_edge_observer();self.edge_enabled=False
@@ -305,7 +305,7 @@ class PairingController:
             else:session=reconnect_verified_socket(sock,prefix=prefix,**options)
             self._serve_host_session(session,peer_name,None)
         except BaseException:
-            if self.host_group and (self.active_capture or self.returning_local):self.host_group.authority.poison()
+            if self.host_group and self._local_input_unrecovered():self.host_group.authority.poison()
             raise
         finally:
             self._close_edge_observer();self.edge_enabled=False
@@ -386,6 +386,17 @@ class PairingController:
                     try:self._prepare_layout(session,name)
                     except Exception:self.layout=None;self._event({'type':'layout_error'})
                     self._event({'type':'screens','count':len(last_screens)})
+
+    def _local_input_unrecovered(self):
+        """True when a session failed and this computer's keyboard and mouse may
+        still be grabbed. Only that justifies disabling every further handoff: an
+        emergency exit, a network drop or an unmapped key ends one session, and
+        the capture child that held the grab has already gone."""
+        capture=self.active_capture
+        if capture is None:return False
+        try:capture.restore_local()
+        except Exception:pass
+        return not getattr(capture,'grab_released',False)
 
     def _finish_host_session(self,session):
         try:session.close()
@@ -500,7 +511,12 @@ class PairingController:
         from .x11_host_process import X11HostProcess
         if session.phase!='local' or not session.screens:raise ControllerError('no target screen')
         if route and route.device_id!=session.transport.peer_fingerprint:raise ControllerError('target identity changed')
-        monitors=self._monitor_snapshot(require_input_clear=True)
+        try:monitors=self._monitor_snapshot(require_input_clear=True)
+        except ControllerError:
+            # A key or button is held, or Caps Lock is on. Nothing has been sent
+            # or claimed yet, so report it and keep the connection.
+            if route and self.host_group:self.host_group.authority.abort(self,session)
+            self._event({'type':'input_busy'});return
         if self.local_screens and monitors!=self.local_screens:raise ControllerError('local monitor configuration changed')
         _,x,y,w,h=monitors[0]
         target=next((s for s in session.screens if route and str(s[0])==route.screen_id),None) if route else session.screens[0]
@@ -560,7 +576,7 @@ class PairingController:
         elif item.get('type')=='connected':self.state='connected';self.connected_name=item.get('peer')
         elif item.get('type')=='controlling':self.state='controlling'
         elif item.get('type')=='returned_local':self.state='connected'
-        elif item.get('type')=='focus_busy':self.state='connected'
+        elif item.get('type') in ('focus_busy','input_busy'):self.state='connected'
         elif item.get('type') in ('error','canceled','stopped'):
             self.state='idle'
             if item.get('type')=='stopped':
