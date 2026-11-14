@@ -414,7 +414,7 @@ void PairingRuntime::run(PairingRuntimeConfig config) {
                     passive=false;reset_workspace();notify(PairingRuntimeEvent::action_failed);
                 } else {
                     CaptureEvent event{};for(unsigned i=0;i<256 && config.host_capture->poll(event);++i)if(event.kind==CaptureKind::move) {
-                        auto target=detector.sample_target(edge_generation,event.x,event.y,config.host_capture->inputs_clear());if(!target)continue;
+                        auto target=detector.sample_target(edge_generation,event.x,event.y,std::function<bool()>([&]{return config.host_capture->inputs_clear();}));if(!target)continue;
                         if(!config.host_capture->stop()){state_.store(PairingState::failed);notify(PairingRuntimeEvent::failed);break;}passive=false;
                         handoff=std::move(*target);
                         break;

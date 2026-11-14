@@ -29,6 +29,10 @@ bool HostInputBridge::captured(const CaptureEvent& event) {
     if (event.kind==CaptureKind::key) {
         if (event.code>255) { session_.disconnect(); return false; }
         auto mapped=scan_to_usage({static_cast<std::uint8_t>(event.code),event.extended,event.e1});
+        // Media, launcher and vendor keys have no shared mapping. Capture has
+        // already kept them off the local desktop; drop both edges here rather
+        // than ending the session over a volume key.
+        if (mapped.status==KeyMapStatus::unknown_scan) return true;
         if (mapped.status!=KeyMapStatus::ok) { session_.disconnect(); return false; }
         const auto bit=modifier(mapped.usage);
         if (bit) { if(event.down) modifiers_|=bit; else modifiers_&=static_cast<std::uint16_t>(~bit); }

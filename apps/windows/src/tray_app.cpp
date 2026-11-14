@@ -26,6 +26,9 @@
 #endif
 #include <windows.h>
 #include <shellapi.h>
+#ifdef HOP_WINDOWS_EXPERIMENTAL_TLS
+#include <wtsapi32.h>
+#endif
 #include <cwchar>
 #include <algorithm>
 #include <initializer_list>
@@ -779,6 +782,14 @@ bool start_pairing(App& app,bool listen) {
     app.show_add=false;app.show_options=false;update_controls(app);
     set_pair_status(app,L"正在准备配对…",L"Preparing pairing…");SetTimer(app.window,reap_timer,200,nullptr);return true;
 }
+// Low-level hooks see nothing on the secure desktop or while asleep, so the
+// releases of keys already forwarded to the remote would be lost. Hand control
+// back first; the user resumes sharing after signing in again.
+void release_remote_before_input_loss(App& app) {
+    if(!app.runtime || app.receiver_mode || !app.state.sharing())return;
+    if(app.runtime->request_pause()){app.edge_armed=false;app.auto_edge_desired=false;update_controls(app);}
+    else app.runtime->request_stop();
+}
 void on_pair_event(App& app,PairingRuntimeEvent event) {
     if(!app.runtime)return;
     switch(event) {
@@ -790,7 +801,12 @@ void on_pair_event(App& app,PairingRuntimeEvent event) {
         auto review=app.runtime->review();if(!review || !show_candidate_fingerprint_prompt(app.window,app.language,*review))set_pair_status(app,L"配对已取消或已过期。",L"Pairing was cancelled or expired.");break;
     }
     case PairingRuntimeEvent::confirming: {
-        auto review=app.runtime->review();const bool accepted=review && show_tls_pair_confirmation(app.window,app.language,*review);app.runtime->confirm_tls(accepted);break;
+        // The dialog pumps messages, so the reap timer can destroy or replace
+        // the runtime (peer cancelled, review expired) before it returns.
+        const auto generation=app.runtime_generation;
+        auto review=app.runtime->review();const bool accepted=review && show_tls_pair_confirmation(app.window,app.language,*review);
+        if(app.runtime && generation==app.runtime_generation)app.runtime->confirm_tls(accepted);
+        break;
     }
     case PairingRuntimeEvent::connected: {
         app.discovery.stop_advertising();app.state.connected(true);app.control_pending=false;app.peer_change_pending=false;
@@ -835,6 +851,9 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lp
     switch (message) {
     case WM_CREATE: {
         app->window=window;
+#ifdef HOP_WINDOWS_EXPERIMENTAL_TLS
+        WTSRegisterSessionNotification(window,NOTIFY_FOR_THIS_SESSION);
+#endif
         const auto make=[&](const wchar_t* cls,const wchar_t* title,DWORD style,int x,int y,int w,int h,UINT id=0,DWORD ex=0) {
             return CreateWindowExW(ex,cls,title,WS_CHILD|style,x,y,w,h,window,reinterpret_cast<HMENU>(static_cast<UINT_PTR>(id)),nullptr,nullptr);
         };
@@ -924,6 +943,12 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lp
         }
         break;
     case pairing_message:if(static_cast<std::uint32_t>(lparam)==app->runtime_generation)on_pair_event(*app,static_cast<PairingRuntimeEvent>(wparam));return 0;
+    case WM_WTSSESSION_CHANGE:
+        if(wparam==WTS_SESSION_LOCK || wparam==WTS_CONSOLE_DISCONNECT || wparam==WTS_REMOTE_DISCONNECT)release_remote_before_input_loss(*app);
+        return 0;
+    case WM_POWERBROADCAST:
+        if(wparam==PBT_APMSUSPEND)release_remote_before_input_loss(*app);
+        return TRUE;
     case WM_TIMER:
         if(wparam==panel_timer) {
             RECT bounds{};GetClientRect(window,&bounds);
@@ -1044,6 +1069,7 @@ LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lp
 #endif
     case WM_DESTROY:
 #ifdef HOP_WINDOWS_EXPERIMENTAL_TLS
+        WTSUnRegisterSessionNotification(window);
         app->event_window.store(nullptr);app->allow_receiver.store(false);if(app->runtime)app->runtime->request_stop();
 #endif
         if(app->layout_window)DestroyWindow(app->layout_window);

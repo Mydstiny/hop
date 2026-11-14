@@ -111,6 +111,10 @@ int main() {
     }
     { Pair p; int leaves=0; check(p.host.set_leave_handler([&](std::uint64_t id,std::uint16_t x,std::uint16_t y){++leaves; return id==7 && x==65535 && y==123; }));
       p.active(); check(p.receiver.request_leave(65535,123)); check(deliver(p.receiver,p.host)); check(leaves==1 && p.host.phase()==SessionPhase::active); }
+    { // A repeated REQUEST_LEAVE still in flight after the host released is ignored, not fatal.
+      Pair p; int leaves=0; check(p.host.set_leave_handler([&](std::uint64_t,std::uint16_t,std::uint16_t){++leaves; return true; }));
+      p.active(); check(p.receiver.request_leave(1,2) && p.receiver.request_leave(1,2)); check(deliver(p.receiver,p.host) && leaves==1);
+      check(p.host.release(0)); check(deliver(p.receiver,p.host)); check(leaves==1 && p.host.phase()==SessionPhase::release_wait); }
     { Pair p; p.clips(); p.active();
       check(p.host.clipboard_start(1,hop::ClipboardFormat::text,4));
       const std::uint8_t text[]={ 'H','o','p','!' }; check(p.host.clipboard_chunk(1,text,2)); check(p.host.clipboard_chunk(1,text+2,2));

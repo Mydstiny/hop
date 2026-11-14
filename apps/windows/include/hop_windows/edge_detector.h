@@ -1,5 +1,6 @@
 #pragma once
 #include "hop_windows/live_layout.h"
+#include <functional>
 namespace hop::windows {
 // Pure passive-edge policy. The owner controls hook lifetime, rechecks real
 // held input before ENTER and disables/rearms on each focus transition.
@@ -11,6 +12,8 @@ public:
     void disarm();
     std::optional<EdgeDestination> sample(std::uint64_t generation,std::int32_t x,std::int32_t y,bool inputs_clear);
     std::optional<PeerDestination> sample_target(std::uint64_t generation,std::int32_t x,std::int32_t y,bool inputs_clear);
+    // As above, but the probe runs only when the sample would actually cross.
+    std::optional<PeerDestination> sample_target(std::uint64_t generation,std::int32_t x,std::int32_t y,const std::function<bool()>& inputs_clear);
 private:
     LiveLayout layout_;std::vector<LiveScreen> local_;std::uint64_t generation_=0,last_screen_=0;
     std::int32_t last_x_=0,last_y_=0;bool prior_=false,armed_=false;

@@ -29,7 +29,14 @@ TcpListener::~TcpListener(){if(socket_!=INVALID_SOCKET)closesocket(socket_);}
 bool TcpListener::local_address(TcpAddress& out) const {out={};out.size=sizeof(out.value);return getsockname(socket_,reinterpret_cast<sockaddr*>(&out.value),&out.size)==0 && valid(out);}
 TcpProgress TcpListener::accept(SOCKET& out) {
     out=INVALID_SOCKET;const auto value=::accept(socket_,nullptr,nullptr);
-    if(value==INVALID_SOCKET)return WSAGetLastError()==WSAEWOULDBLOCK?TcpProgress::pending:TcpProgress::failed;
+    if(value==INVALID_SOCKET) {
+        // A peer that resets before accept (a port scan, a dropped Wi-Fi client)
+        // or a momentary resource shortage is not a listener failure.
+        switch(WSAGetLastError()) {
+        case WSAEWOULDBLOCK: case WSAECONNRESET: case WSAEINTR: case WSAEINPROGRESS: case WSAEMFILE: case WSAENOBUFS: return TcpProgress::pending;
+        default: return TcpProgress::failed;
+        }
+    }
     u_long enabled=1;if(ioctlsocket(value,FIONBIO,&enabled)==SOCKET_ERROR){closesocket(value);return TcpProgress::failed;}
     out=value;return TcpProgress::ready;
 }

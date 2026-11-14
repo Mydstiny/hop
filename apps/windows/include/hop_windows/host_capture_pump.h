@@ -21,6 +21,9 @@ public:
     virtual bool stop() = 0;
     virtual bool force_recovery() = 0;
     virtual bool restore_cursor(CursorPoint point) = 0;
+    // Where the local cursor rests, in the coordinates capture events use.
+    // Optional: false keeps the anchor that prepare() reported.
+    virtual bool cursor(CursorPoint&) { return false; }
 };
 // Real methods install low-level hooks and move the local cursor. They must be
 // called only after explicit enablement and never in automated tests.
@@ -39,6 +42,7 @@ public:
     bool stop() override {return capture_.stop();}
     bool force_recovery() override {return capture_.request_force_recovery();}
     bool restore_cursor(CursorPoint point) override;
+    bool cursor(CursorPoint& point) override;
 private:
     InputCapture capture_;
 };

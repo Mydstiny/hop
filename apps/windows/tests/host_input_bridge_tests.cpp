@@ -27,7 +27,15 @@ int main() {
     button.down=false; check(bridge.captured(button)); deliver(host,receiver); check(sink.held_buttons()==0);
     CaptureEvent wheel{CaptureKind::wheel}; wheel.y=120; check(bridge.captured(wheel)); deliver(host,receiver); check(events.back().mi.mouseData==120);
     check(!bridge.set_pointer_settings({0,1,1,false,false}));
-    CaptureEvent unknown{CaptureKind::key,0xff,true}; check(!bridge.captured(unknown)); check(host.phase()==SessionPhase::failed && restored==1);
+    // A key without a shared mapping (media, vendor) is dropped on both edges and the session continues.
+    CaptureEvent unknown{CaptureKind::key,0xff,true}; check(bridge.captured(unknown)); unknown.down=false; check(bridge.captured(unknown));
+    std::vector<std::uint8_t> none; check(host.take(true,none) && none.empty() && host.phase()==SessionPhase::active && restored==0);
+    // Windows auto-repeats a held modifier; the repeat carries no new state.
+    ctrl.down=true; check(bridge.captured(ctrl)); deliver(host,receiver); ctrl.repeat=true; check(bridge.captured(ctrl) && bridge.captured(ctrl));
+    check(host.take(true,none) && none.empty() && host.phase()==SessionPhase::active);
+    ctrl.down=false; ctrl.repeat=false; check(bridge.captured(ctrl)); deliver(host,receiver); check(sink.held_keys()==0);
+    // A malformed capture event still fails closed.
+    CaptureEvent invalid{CaptureKind::key,0x100,true}; check(!bridge.captured(invalid)); check(host.phase()==SessionPhase::failed && restored==1);
     receiver.disconnect(); check(sink.held_keys()==0 && sink.held_buttons()==0);
     std::cout<<"PASS "<<n<<" host to receiver bridge checks; fake capture and injection only\n";
 }

@@ -38,6 +38,13 @@ bool WindowsCaptureSource::restore_cursor(CursorPoint p) {
     const bool moved=SetCursorPos(p.x,p.y)!=FALSE,restored=set_context(old)!=nullptr;
     return moved && restored;
 }
+bool WindowsCaptureSource::cursor(CursorPoint& p) {
+    const auto set_context=dpi_function(); if(!set_context)return false;
+    const auto old=set_context(reinterpret_cast<HANDLE>(static_cast<std::intptr_t>(-4))); if(!old)return false;
+    POINT point{}; const bool read=GetCursorPos(&point)!=FALSE,restored=set_context(old)!=nullptr;
+    if(read && restored)p={point.x,point.y};
+    return read && restored;
+}
 bool HostCapturePump::set_return_edge(std::function<std::optional<CursorPoint>(std::uint64_t,std::uint16_t,std::uint16_t,std::int32_t,std::int32_t)> callback) {
     if(!callback)return false;
     return set_route_edge([callback=std::move(callback)](auto screen,auto x,auto y,auto dx,auto dy)->std::optional<LiveDestination> {
@@ -85,7 +92,18 @@ bool HostCapturePump::step(std::uint64_t now) {
     last_now_=now;
     if(source_.overflow() || source_.emergency())return fail();
     const bool active=source_.active();
-    if(active)seen_active_=true; else if(seen_active_ || now-started_>=1000)return fail();
+    if(active && !seen_active_) {
+        // The pointer keeps moving between prepare() centring it and the hooks
+        // starting to swallow motion. It is frozen from here on, and every
+        // event is reported relative to that resting point, so measure from it.
+        CursorPoint resting{}; if(source_.cursor(resting))anchor_=resting;
+        seen_active_=true;
+    } else if(!active) {
+        if(seen_active_ || now-started_>=1000)return fail();
+        // Activation is refused while unread passive motion is queued. The loop
+        // below drains that queue, so ask again until the hooks take over.
+        source_.activate();
+    }
     CaptureEvent event{};
     for(unsigned i=0;i<256 && source_.poll(event);++i) {
         if(!active)continue; // passive edge samples precede activation
@@ -93,10 +111,12 @@ bool HostCapturePump::step(std::uint64_t now) {
             const auto dx=std::int64_t(event.x)-anchor_.x,dy=std::int64_t(event.y)-anchor_.y;
             if(std::abs(dx)>1000000 || std::abs(dy)>1000000 || std::abs(pending_x_+dx)>1000000 || std::abs(pending_y_+dy)>1000000)return fail();
             const bool at_edge=(bridge_->x()==0 && dx<0) || (bridge_->x()==65535 && dx>0) || (bridge_->y()==0 && dy<0) || (bridge_->y()==65535 && dy>0);
-            if(route_edge_ && at_edge && source_.inputs_clear()) {
+            // Keys and buttons the hooks swallow never reach the async key state,
+            // so ownership (drained) is what knows about a remote drag or chord.
+            if(route_edge_ && at_edge && source_.drained() && source_.inputs_clear()) {
                 if(!flush_motion(now))return fail();
                 auto target=route_edge_(screen_,bridge_->x(),bridge_->y(),static_cast<std::int32_t>(dx),static_cast<std::int32_t>(dy));
-                if(target && source_.inputs_clear()) {
+                if(target && source_.drained() && source_.inputs_clear()) {
                     if(auto* local=std::get_if<LocalDestination>(&*target))original_={local->x,local->y};
                     if(!session_.release(0))return fail();
                     if(auto* peer=std::get_if<PeerDestination>(&*target))handoff_=std::move(*peer);
