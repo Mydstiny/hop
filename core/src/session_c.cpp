@@ -11,6 +11,8 @@ struct hop_v2_session {
     std::unique_ptr<hop::v2::Session> value;
     std::vector<std::uint8_t> pending;
     void wipe() { volatile std::uint8_t* p=pending.data(); for(std::size_t i=0;i<pending.size();++i)p[i]=0; pending.clear(); }
+    // Byte 5 of an encoded frame is its kind; 3 and 4 are the clipboard kinds.
+    void wipe_clipboard() { if(pending.size()>5 && (pending[5]==3 || pending[5]==4)) wipe(); }
     ~hop_v2_session() { if(value && value->phase()!=hop::v2::SessionPhase::initial) { try { value->disconnect(); } catch (...) {} } wipe(); }
 };
 namespace {
@@ -29,8 +31,10 @@ extern "C" hop_v2_session* hop_v2_create(int role,int p,uint64_t epoch,const uin
         if(cb.input) hooks.input=[ctx](const hop::Frame& f){return ctx->callbacks.input(ctx->user,f.payload.data(),f.payload.size(),f.epoch)==1;};
         hooks.restore=[ctx]{return ctx->callbacks.restore(ctx->user)==1;};
         // A previously peeked C-ABI frame is outside Session's queue. Drop it
-        // too when focus is revoked, before notifying the platform actor.
-        hooks.clipboard_revoke=[ctx]{ctx->wipe();if(ctx->callbacks.clipboard_revoke)ctx->callbacks.clipboard_revoke(ctx->user);};
+        // too when focus is revoked, before notifying the platform actor, but
+        // only if it carries clipboard data: a peeked key release, ACK or
+        // heartbeat already consumed its sequence number and must still be sent.
+        hooks.clipboard_revoke=[ctx]{ctx->wipe_clipboard();if(ctx->callbacks.clipboard_revoke)ctx->callbacks.clipboard_revoke(ctx->user);};
         out->value=std::make_unique<hop::v2::Session>(role==1?hop::v2::SessionRole::host:hop::v2::SessionRole::receiver,epoch,std::move(ids),std::move(hooks),platform(p),caps);
         if(cb.leave && role==1) out->value->set_leave_handler([ctx](std::uint64_t s,std::uint16_t x,std::uint16_t y){return ctx->callbacks.leave(ctx->user,s,x,y)==1;});
         return out.release();

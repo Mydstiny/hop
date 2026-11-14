@@ -337,6 +337,9 @@ bool Session::deliver(Frame&& f) {
         if (op==0x16) { if(!clip_paused_)revoke_clipboard(); }
         else if (!clip_paused_) { if(clip_remote_ready_)return fail();clip_remote_ready_=true; }
     } else if (f.kind==FrameKind::control && op==0x14) {
+        // A receiver repeats REQUEST_LEAVE while its pointer rests on an edge, so
+        // one may still be in flight after the host has already released that focus.
+        if (role_==SessionRole::host && (f.epoch<focus_epoch_ || (phase_!=SessionPhase::active && f.epoch<=last_focus_))) {last_received_=now_;return true;}
         if (role_!=SessionRole::host || phase_!=SessionPhase::active || f.epoch!=focus_epoch_ || get64(p.data()+4)!=screen_ || !leave_handler_ || !leave_handler_(screen_,get16(p.data()+12),get16(p.data()+14))) return fail();
     } else if (f.kind==FrameKind::input) {
         if (role_!=SessionRole::receiver || phase_!=SessionPhase::active || f.epoch!=focus_epoch_ || !transition_input(f) || !callbacks_.input || !callbacks_.input(f)) return fail();

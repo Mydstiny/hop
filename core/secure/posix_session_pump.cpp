@@ -18,17 +18,7 @@ bool PosixSessionPump::step(std::uint64_t now){
     try {
         if(!transport_.authenticated() || session_.peer_fingerprint().empty() ||
            session_.peer_fingerprint()!=transport_.pinned_peer_fingerprint() || !session_.tick(true,now)) return abort();
-        for(unsigned i=0;i<16;++i){
-            if(pending_.empty()){
-                if(!session_.take(true,pending_))return abort();offset_=0;
-                if(pending_.empty()){if(session_.phase()==v2::SessionPhase::pair_cancel_wait)return abort();break;}
-            }
-            const auto n=std::min<std::size_t>(16384,pending_.size()-offset_);
-            const auto out=transport_.write(pending_.data()+offset_,n);
-            if(out.status==SocketProgress::again)break;
-            if(out.status!=SocketProgress::ready||!out.bytes||out.bytes>n)return abort();
-            offset_+=out.bytes;if(offset_==pending_.size())wipe();
-        }
+        if(!write_pending())return false;
         std::array<std::uint8_t,16384> bytes{};
         struct Wiper{std::array<std::uint8_t,16384>& a;~Wiper(){volatile std::uint8_t* p=a.data();for(std::size_t i=0;i<a.size();++i)p[i]=0;}} wiper{bytes};
         for(unsigned i=0;i<16;++i){
@@ -41,7 +31,30 @@ bool PosixSessionPump::step(std::uint64_t now){
             if(end_batch_)end_batch_();
             if(!ok)return abort();
         }
-        return true;
+        // ENTER_ACK, RELEASE_ACK and similar replies were queued by the reads
+        // above. Send them now instead of on the caller's next wake-up.
+        return write_pending();
     }catch(...){return abort();}
+}
+bool PosixSessionPump::flush(){
+    if(stopped_)return false;
+    try {
+        if(!transport_.authenticated() || session_.peer_fingerprint()!=transport_.pinned_peer_fingerprint())return abort();
+        return write_pending();
+    }catch(...){return abort();}
+}
+bool PosixSessionPump::write_pending(){
+    for(unsigned i=0;i<16;++i){
+        if(pending_.empty()){
+            if(!session_.take(true,pending_))return abort();offset_=0;
+            if(pending_.empty()){if(session_.phase()==v2::SessionPhase::pair_cancel_wait)return abort();break;}
+        }
+        const auto n=std::min<std::size_t>(16384,pending_.size()-offset_);
+        const auto out=transport_.write(pending_.data()+offset_,n);
+        if(out.status==SocketProgress::again)break;
+        if(out.status!=SocketProgress::ready||!out.bytes||out.bytes>n)return abort();
+        offset_+=out.bytes;if(offset_==pending_.size())wipe();
+    }
+    return true;
 }
 }

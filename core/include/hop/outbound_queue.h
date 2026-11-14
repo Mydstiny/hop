@@ -7,6 +7,7 @@ namespace hop {
 // Bounded per-connection queues. Input/control keep their mutual order and
 // take priority between clipboard chunks; this cannot preempt an in-flight TLS
 // write. Enqueue failure requires caller backpressure, never silent key loss.
+// Consecutive unsent pointer moves for one screen collapse into the newest.
 class OutboundQueue {
 public:
     OutboundQueue() = default;

@@ -38,8 +38,13 @@ void ShortcutTranslator::decide(std::vector<KeyEvent>& out, Decision choice) {
 std::optional<std::vector<KeyEvent>> ShortcutTranslator::push(KeyEvent input) {
     if (failed_) return std::nullopt;
     const auto b = bit(input.usage);
-    if (!input.usage || input.usage > 0xe7 || (input.modifiers & ~std::uint16_t(0x1ff)) ||
-        (input.repeat && (!input.down || b)) ||
+    if (!input.usage || input.usage > 0xe7 || (input.modifiers & ~std::uint16_t(0x1ff)) || (input.repeat && !input.down)) {
+        failed_ = true; return std::nullopt;
+    }
+    // Windows auto-repeats held modifiers. A repeat that matches the tracked
+    // state changes nothing, so it produces no output instead of a fault.
+    if (b && input.repeat && (source_modifiers_ & b) && (input.modifiers & 0xff) == source_modifiers_) return std::vector<KeyEvent>{};
+    if ((input.repeat && b) ||
         (b && (bool(source_modifiers_ & b) == input.down || bool(input.modifiers & b) != input.down))) {
         failed_ = true; return std::nullopt;
     }

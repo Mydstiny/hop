@@ -196,6 +196,22 @@ void outbound_queue_tests() {
     CHECK(queue.discard_input(5) == OutboundQueue::max_interactive_frames);
     CHECK(queue.enqueue(FrameKind::control, 5, {3}));
     CHECK(queue.enqueue(FrameKind::input, 6, {4}));
+    {
+        OutboundQueue moves;
+        const auto move = [](std::uint8_t screen, std::uint8_t x) { return std::vector<std::uint8_t>{1,1,0,0,0,0,0,0,0,0,0,screen,0,x,0,x}; };
+        CHECK(moves.enqueue(FrameKind::input, 5, move(7, 1)) && moves.enqueue(FrameKind::input, 5, move(7, 2)));
+        CHECK(moves.enqueue(FrameKind::input, 5, move(8, 3)));      // another screen
+        CHECK(moves.enqueue(FrameKind::input, 6, move(8, 4)));      // another focus
+        CHECK(moves.enqueue(FrameKind::control, 6, move(8, 5)));    // not input
+        CHECK(moves.enqueue(FrameKind::input, 6, move(8, 6)) && moves.enqueue(FrameKind::input, 6, move(8, 7)));
+        const std::uint8_t expected[] = {2, 3, 4, 5, 7};
+        for (auto x : expected) { auto f = moves.pop(); CHECK(f && f->payload[13] == x && f->payload[15] == x); }
+        CHECK(!moves.pop());
+        // Merging keeps a stalled connection from overflowing on motion alone.
+        for (std::size_t i = 0; i < 4 * OutboundQueue::max_interactive_frames; ++i)
+            CHECK(moves.enqueue(FrameKind::input, 6, move(8, static_cast<std::uint8_t>(i))));
+        auto last = moves.pop(); CHECK(last && last->sequence == 6 && last->payload[13] == 0xff && !moves.pop());
+    }
     auto control = queue.pop(); auto next = queue.pop();
     CHECK(control && control->kind == FrameKind::control && control->epoch == 5 && control->sequence == 6);
     CHECK(next && next->kind == FrameKind::input && next->epoch == 6 && next->sequence == 7);
@@ -310,6 +326,24 @@ void shortcut_translator_tests() {
     a=mac.push({0x06,left_meta,true,true}); CHECK(a && a->size()==1 && (*a)[0].repeat && (*a)[0].modifiers==left_control);
     a=mac.push({0x06,left_meta,false,false}); CHECK(a && a->size()==1 && !(*a)[0].down);
     a=mac.push({0xe3,0,false,false}); CHECK(a && a->size()==1 && (*a)[0].usage==0xe0 && !(*a)[0].down && (*a)[0].modifiers==0);
+    {
+        // Windows auto-repeats held modifiers; a consistent repeat emits nothing.
+        ShortcutTranslator held(Platform::windows,Platform::macos,KeyMode::physical);
+        auto h=held.push({0xe1,left_shift,true,false}); CHECK(h && h->size()==1 && (*h)[0].down);
+        h=held.push({0xe1,left_shift,true,true}); CHECK(h && h->empty());
+        h=held.push({0x04,left_shift,true,false}); CHECK(h && h->size()==1 && (*h)[0].modifiers==left_shift);
+        h=held.push({0xe1,left_shift,true,true}); CHECK(h && h->empty());
+        h=held.push({0x04,left_shift,false,false}); CHECK(h && h->size()==1);
+        h=held.push({0xe1,0,false,false}); CHECK(h && h->size()==1 && !(*h)[0].down && (*h)[0].modifiers==0);
+        ShortcutTranslator never(Platform::windows,Platform::macos,KeyMode::physical);
+        CHECK(!never.push({0xe1,left_shift,true,true}));               // repeat of a modifier that was never pressed
+        ShortcutTranslator drift(Platform::windows,Platform::macos,KeyMode::physical);
+        CHECK(drift.push({0xe1,left_shift,true,false}));
+        CHECK(!drift.push({0xe1,left_shift|left_control,true,true}));  // repeat carrying a different modifier state
+        ShortcutTranslator again(Platform::windows,Platform::macos,KeyMode::physical);
+        CHECK(again.push({0xe1,left_shift,true,false}));
+        CHECK(!again.push({0xe1,left_shift,true,false}));              // a second non-repeat press stays inconsistent
+    }
     ShortcutTranslator alone(Platform::macos,Platform::harmonyos,KeyMode::common_shortcuts);
     CHECK(alone.push({0xe3,left_meta,true,false})->empty());
     a=alone.push({0xe3,0,false,false}); CHECK(a && a->size()==2 && (*a)[0].usage==0xe3 && (*a)[0].down && !(*a)[1].down);

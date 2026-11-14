@@ -50,6 +50,14 @@ SecureChannel::SecureChannel(TlsRole role, const TlsIdentity& id, void* io, TlsS
                                                MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
     if (rc) { s.failure = rc; return; }
     mbedtls_ssl_conf_authmode(&s.config, MBEDTLS_SSL_VERIFY_REQUIRED);
+    // Trust is the exact certificate the user verified, checked byte for byte
+    // after the handshake. Its validity dates add nothing to that decision, and
+    // enforcing them breaks pairing whenever two clocks disagree (a device
+    // without a battery-backed clock, or one set a few minutes behind).
+    mbedtls_ssl_conf_verify(&s.config, [](void*, mbedtls_x509_crt*, int, uint32_t* flags) {
+        *flags &= ~static_cast<uint32_t>(MBEDTLS_X509_BADCERT_FUTURE | MBEDTLS_X509_BADCERT_EXPIRED);
+        return 0;
+    }, nullptr);
     // Do not silently downgrade the new channel to older protocol versions.
     mbedtls_ssl_conf_min_tls_version(&s.config, MBEDTLS_SSL_VERSION_TLS1_3);
     mbedtls_ssl_conf_rng(&s.config, mbedtls_ctr_drbg_random, &s.rng);

@@ -193,5 +193,39 @@ int main() {
       check(p.host.send_input({1,4,0,0,0,6,0,0x40,1,0,0,0}));
       check(deliver(p.host,p.receiver)); check(deliver(p.host,p.receiver));
       check(p.injected.size()==2 && p.injected[0].payload[5]==0xe0 && p.injected[1].payload[5]==6 && p.injected[1].payload[7]==4); }
+    { // A receiver repeats REQUEST_LEAVE while its pointer rests on an edge. Copies
+      // still in flight after the host released must be ignored, not fatal.
+      Pair p; int leaves=0; check(p.host.set_leave_handler([&](std::uint64_t screen,std::uint16_t x,std::uint16_t y){++leaves;return screen==7 && x==1 && y==2;}));
+      p.active();
+      check(p.receiver.request_leave(1,2) && p.receiver.request_leave(1,2) && p.receiver.request_leave(1,2));
+      check(deliver(p.receiver,p.host) && leaves==1 && p.host.phase()==SessionPhase::active);
+      check(p.host.release(0) && p.host.phase()==SessionPhase::release_wait);
+      check(deliver(p.receiver,p.host) && leaves==1 && p.host.phase()==SessionPhase::release_wait);
+      check(deliver(p.host,p.receiver) && p.receiver.phase()==SessionPhase::ready && !p.receiver.request_leave(1,2));
+      check(deliver(p.receiver,p.host) && leaves==1 && p.host.phase()==SessionPhase::release_wait); // third copy, still before the ACK
+      check(deliver(p.receiver,p.host) && p.host.phase()==SessionPhase::ready);
+      check(p.host.enter(44,7,0,0) && deliver(p.host,p.receiver) && deliver(p.receiver,p.host) && p.host.phase()==SessionPhase::active);
+      const std::vector<std::uint8_t> leave{1,0x14,0,0, 0,0,0,0,0,0,0,7, 0,1,0,2};
+      auto stale=encode_frame({FrameKind::control,100,43,leave}); // previous focus epoch arriving in the new one
+      check(p.host.receive(true,stale.data(),stale.size(),0) && leaves==1 && p.host.phase()==SessionPhase::active);
+      auto future=encode_frame({FrameKind::control,101,45,leave}); // an epoch the host never issued stays fatal
+      check(!p.host.receive(true,future.data(),future.size(),0) && p.host.phase()==SessionPhase::failed); }
+    { // Only a host accepts REQUEST_LEAVE, stale or not.
+      Pair p; p.active(); auto wrong=encode_frame({FrameKind::control,100,43,{1,0x14,0,0, 0,0,0,0,0,0,0,7, 0,1,0,2}});
+      check(!p.receiver.receive(true,wrong.data(),wrong.size(),0) && p.receiver.phase()==SessionPhase::failed); }
+    { // A held modifier that the OS auto-repeats is a no-op, not a session fault.
+      Pair p; p.active();
+      check(p.host.send_input({1,4,0,0,0,0xe1,0,1,1,0,0,0}) && deliver(p.host,p.receiver) && p.inputs==1);
+      check(p.host.send_input({1,4,0,0,0,0xe1,0,1,1,1,0,0}) && p.host.send_input({1,4,0,0,0,0xe1,0,1,1,1,0,0}));
+      std::vector<std::uint8_t> none; check(p.host.take(true,none) && none.empty() && p.host.phase()==SessionPhase::active);
+      check(p.host.send_input({1,4,0,0,0,0xe1,0,0,0,0,0,0}) && deliver(p.host,p.receiver) && p.inputs==2 && p.injected[1].payload[8]==0); }
+    { // Unsent pointer moves collapse into the newest; other input keeps its place.
+      Pair p; p.active();
+      auto at=[](std::uint8_t x){ return std::vector<std::uint8_t>{1,1,0,0,0,0,0,0,0,0,0,7,0,x,0,x}; };
+      check(p.host.send_input(at(1)) && p.host.send_input(at(2)) && p.host.send_input(at(3)));
+      check(p.host.send_input(key(true)) && p.host.send_input(at(4)) && p.host.send_input(at(5)) && p.host.send_input(key(false)));
+      for(int i=0;i<4;++i) check(deliver(p.host,p.receiver));
+      std::vector<std::uint8_t> none; check(p.host.take(true,none) && none.empty());
+      check(p.inputs==4 && p.injected[0].payload[13]==3 && p.injected[1].payload[1]==4 && p.injected[2].payload[13]==5 && p.injected[3].payload[1]==4); }
     std::cout<<"PASS "<<checks<<" session lifecycle checks; no system input or clipboard\n";
 }

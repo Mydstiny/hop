@@ -1,4 +1,5 @@
 #include "hop/outbound_queue.h"
+#include <algorithm>
 #include <utility>
 
 namespace hop {
@@ -8,6 +9,10 @@ void wipe(std::vector<std::uint8_t>& bytes) {
     for (std::size_t i=0;i<bytes.size();++i) p[i]=0;
 }
 struct WipeOnExit { std::vector<std::uint8_t>& bytes; ~WipeOnExit() { wipe(bytes); } };
+// Input MOVE: schema, opcode 1, reserved, then screen_id:u64, x:u16, y:u16.
+bool is_move(FrameKind kind, const std::vector<std::uint8_t>& p) {
+    return kind == FrameKind::input && p.size() == 16 && p[0] == 1 && p[1] == 1;
+}
 }
 OutboundQueue::~OutboundQueue() {
     discard_clipboard();
@@ -28,6 +33,17 @@ bool OutboundQueue::enqueue(FrameKind kind, std::uint64_t epoch, std::vector<std
         catch (...) { return false; }
         clipboard_bytes_ += bytes;
     } else {
+        // An absolute pointer position supersedes an unsent one for the same
+        // focus and screen. Only the newest queued frame is replaced, so a move
+        // never jumps ahead of a key, button, wheel or control frame.
+        if (is_move(kind, payload) && !interactive_.empty()) {
+            auto& last = interactive_.back();
+            if (last.epoch == epoch && is_move(last.kind, last.payload) &&
+                std::equal(payload.begin() + 4, payload.begin() + 12, last.payload.begin() + 4)) {
+                std::copy(payload.begin() + 12, payload.end(), last.payload.begin() + 12);
+                return true;
+            }
+        }
         if (interactive_.size() >= max_interactive_frames) return false;
         try { interactive_.push_back({kind, 0, epoch, std::move(payload)}); }
         catch (...) { return false; }

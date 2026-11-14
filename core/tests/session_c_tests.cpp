@@ -51,6 +51,22 @@ int main() {
     pending=99; check(hop_v2_pull(r,1,nullptr,0,&pending)==0 && pending==0);
     check(hop_v2_complete_release(r,0)==0 && hop_v2_complete_release(h,0)==0 && pump(r,h)); check(a.restores==1 && b.restores==1);
     hop_v2_free(h);hop_v2_free(r);
+    {
+        // A peeked frame that is not clipboard data already owns a sequence
+        // number, so revoking clipboard focus must not discard it.
+        State c,d; auto* h2=hop_v2_create(1,1,42,nullptr,0,25,host,&c); auto* r2=hop_v2_create(2,4,0,&screen,1,25,receiver,&d);
+        check(h2 && r2 && hop_v2_start(r2,1,0)==0 && hop_v2_start(h2,1,0)==0 && pump(h2,r2) && pump(r2,h2));
+        check(hop_v2_advertise(r2,list.data(),list.size())==0 && pump(r2,h2));
+        check(hop_v2_enter(h2,43,7,0,0)==0 && pump(h2,r2) && pump(r2,h2) && d.enters==1);
+        size_t peeked=0,again=0;
+        check(hop_v2_request_leave(r2,1,2)==0 && hop_v2_pull(r2,1,nullptr,0,&peeked)==1 && peeked==44);
+        check(hop_v2_release(h2,0)==0 && pump(h2,r2) && d.restores==1);
+        check(hop_v2_pull(r2,1,nullptr,0,&again)==1 && again==peeked);
+        const int release_wait=hop_v2_phase(h2);
+        check(pump(r2,h2) && hop_v2_phase(h2)==release_wait); // the late edge request is ignored
+        check(pump(r2,h2) && hop_v2_phase(h2)!=release_wait && hop_v2_enter(h2,44,7,0,0)==0);
+        hop_v2_free(h2);hop_v2_free(r2);
+    }
     auto without_revoke=host; without_revoke.clipboard_revoke=nullptr;
     auto* unsafe_clip=hop_v2_create(1,1,42,nullptr,0,25,without_revoke,&a);
     check(unsafe_clip && hop_v2_enable_clipboard(unsafe_clip,1,0)==-1); hop_v2_free(unsafe_clip);

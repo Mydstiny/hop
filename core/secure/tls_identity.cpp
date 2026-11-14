@@ -76,7 +76,9 @@ bool generate_tls_identity(GeneratedTlsIdentity& output) {
     if (!rc) rc=mbedtls_x509write_crt_set_subject_name(&g.cert,"CN=Hop device");
     if (!rc) rc=mbedtls_x509write_crt_set_issuer_name(&g.cert,"CN=Hop device");
     const std::time_t now=std::time(nullptr); char before[15]{},after[15]{};
-    if (now<=0 || !utc(now-300,before) || !utc(now+std::time_t(10LL*365*24*60*60),after)) return false;
+    // Start in the past so a peer whose clock runs behind, including a release
+    // that still enforces certificate dates, accepts a freshly made identity.
+    if (now<=0 || !utc(now-std::time_t(2LL*365*24*60*60),before) || !utc(now+std::time_t(10LL*365*24*60*60),after)) return false;
     if (!rc) rc=mbedtls_x509write_crt_set_validity(&g.cert,before,after);
     if (!rc) rc=mbedtls_x509write_crt_set_basic_constraints(&g.cert,1,-1);
     if (!rc) rc=mbedtls_x509write_crt_set_key_usage(&g.cert,MBEDTLS_X509_KU_DIGITAL_SIGNATURE|MBEDTLS_X509_KU_KEY_CERT_SIGN);
