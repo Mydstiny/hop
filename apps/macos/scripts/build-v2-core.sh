@@ -24,10 +24,16 @@ for arch in arm64 x86_64; do
   "$CMAKE" "${args[@]}"
   "$CMAKE" --build "$build" --target hop_tls --parallel 4
   archive="$OUT/libhop-v2-$arch.a"
-  xcrun libtool -static -o "$archive" "$build/libhop_tls.a" "$build/libhop_core.a" \
-    "$build/mbedtls/library/libmbedtls.a" "$build/mbedtls/library/libmbedx509.a" \
-    "$build/mbedtls/library/libmbedcrypto.a" "$build/mbedtls/3rdparty/everest/libeverest.a" \
-    "$build/mbedtls/3rdparty/p256-m/libp256m.a"
+  # A local HOP_MBEDTLS_SOURCE_DIR builds under mbedtls/; the pinned download
+  # (the default on a clean machine) builds under _deps/mbedtls-build/.
+  mbed="$build/mbedtls"
+  [[ -f "$mbed/library/libmbedtls.a" ]] || mbed="$build/_deps/mbedtls-build"
+  libs=("$build/libhop_tls.a" "$build/libhop_core.a" "$mbed/library/libmbedtls.a" "$mbed/library/libmbedx509.a"
+        "$mbed/library/libmbedcrypto.a" "$mbed/3rdparty/everest/libeverest.a" "$mbed/3rdparty/p256-m/libp256m.a")
+  for lib in "${libs[@]}"; do
+    [[ -f "$lib" ]] || { echo "Missing build output: $lib" >&2; exit 1; }
+  done
+  xcrun libtool -static -o "$archive" "${libs[@]}"
   archives+=("$archive")
 done
 lipo -create "${archives[@]}" -output "$OUT/libhop-v2-universal.a"
