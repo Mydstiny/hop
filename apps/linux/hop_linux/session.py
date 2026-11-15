@@ -10,6 +10,8 @@ import struct
 
 _HEADER = struct.Struct('!4sBBHIQQ')
 _LIMITS = {1: 4096, 2: 4096, 3: 4096, 4: 65536}
+# Bytes one poll may read once the first read has returned data.
+_DRAIN_BYTES = 512 * 1024
 _MAX_SEQUENCE = (1 << 64) - 1
 
 
@@ -76,6 +78,7 @@ class Session:
         self.platform, self.capabilities = platform, capabilities
         self.clipboard=clipboard
         self.clipboard_sender=clipboard_sender
+        self._deferred_error=None
         self.decoder = FrameDecoder(); self.sequence = 0; self.session_epoch = 0; self.epoch = 0
         self.phase = 'hello'; self.closed = False; self.screen_id = 0; self.peer_capabilities = 0
         self.peer_platform = 0
@@ -360,13 +363,25 @@ class Session:
             if self.pairing_deadline is not None and now >= self.pairing_deadline: raise ProtocolError('pairing timed out')
             if self.phase != 'hello' and now - self.last_heartbeat >= 1:
                 self._control('heartbeat', self.session_epoch, nonce=0); self.last_heartbeat = now
+            if self._deferred_error is not None: raise self._deferred_error
             data = self.transport.read_some(timeout=min(timeout,.2))
             if data is None: return 0
-            frames = self.decoder.feed(data)
-            for kind, _sequence, epoch, payload in frames:
-                self._handle(kind, epoch, payload); self.last_receive = self._clock()
-                if self.closed: break
-            return len(frames)
+            # A TLS record carries at most 16 KiB, a quarter of one clipboard
+            # chunk. Keep reading what has already arrived, up to a bound, so a
+            # large transfer is not paced by the caller's loop. Not during hello
+            # or pairing: the caller acts (pins the peer) between those frames.
+            count = 0; budget = _DRAIN_BYTES if self.phase not in ('hello', 'pairing') else 0
+            while True:
+                budget -= len(data)
+                for kind, _sequence, epoch, payload in self.decoder.feed(data):
+                    self._handle(kind, epoch, payload); self.last_receive = self._clock(); count += 1
+                    if self.closed: return count
+                if budget <= 0: return count
+                try: data = self.transport.read_some(timeout=.0005)
+                except EOFError as exc:
+                    # Let the caller see the frames that came before the close.
+                    self._deferred_error = exc; return count
+                if data is None: return count
         except BaseException:
             self.close(); raise
 

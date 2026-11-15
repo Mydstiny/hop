@@ -17,12 +17,16 @@ from .profiles import PointerProfile
 
 
 class X11HostProcess:
-    def __init__(self, *, screen_id, target_size, capture_center, initial=(32768,32768), profile=None, translator=None, edge_directions=(), on_edge=None):
+    def __init__(self, *, screen_id, target_size, capture_center, initial=(32768,32768), profile=None, translator=None, edge_directions=(), on_edge=None, on_emergency=None):
         self.config=dict(screen_id=screen_id,target_size=target_size,capture_center=capture_center,initial=initial,
                          profile=asdict(profile or PointerProfile()),edge_directions=edge_directions)
         self.process=None;self.session=None;self.reader=None;self.error=None;self.started=threading.Event()
         self.translator=translator
         self.on_edge=on_edge
+        # Called with the session after the child has dropped its grab for
+        # Ctrl+Shift+Alt+Esc; returning True means focus was released and the
+        # session continues. Without it the emergency exit ends the session.
+        self.on_emergency=on_emergency;self.emergency=False
         # False only between starting the grabbing child and confirming it exited.
         self.grab_released=True
         self.events=queue.Queue(maxsize=256);self.last_tick=0
@@ -54,6 +58,8 @@ class X11HostProcess:
                 if len(raw)>16384 or not raw.endswith(b'\n'): raise RuntimeError('invalid capture message')
                 message=json.loads(raw)
                 if message.get('type')=='ready': self.started.set();continue
+                if message.get('type')=='emergency':
+                    self.emergency=True;return
                 if message.get('type')=='error': raise RuntimeError('capture failed: '+str(message.get('message','')))
                 if message.get('type')!='input' or not isinstance(message.get('fields'),dict) or not isinstance(message.get('event'),str): raise RuntimeError('invalid capture message')
                 try:self.events.put_nowait((message['event'],message['fields']))
@@ -70,6 +76,11 @@ class X11HostProcess:
     def pump(self, session):
         try:
             if session is not self.session or session.phase!='remote' or not session.transport.authenticated: raise RuntimeError('active authenticated focus required')
+            if self.emergency:
+                # Input queued before the shortcut is dropped: releasing focus
+                # makes the receiver let go of every key it still holds.
+                if self.on_emergency and self.on_emergency(session):return
+                raise RuntimeError('emergency local input restore')
             self._tick()
             deadline=time.monotonic()+.05
             for _ in range(32):

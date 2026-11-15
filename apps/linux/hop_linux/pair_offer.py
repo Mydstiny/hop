@@ -117,6 +117,26 @@ def read_connection_prefix(sock, *, timeout=5):
     except OSError as exc:raise OfferError('preface read failed') from exc
 
 
+def peek_selector(sock, *, timeout=5):
+    """Return the lookup hint a connection opens with, leaving it unread.
+
+    Lets a listener skip a connection from some other device without
+    consuming the bytes the selected handshake reads next."""
+    if not isinstance(sock,socket.socket) or not 0<timeout<=30:raise OfferError('invalid selector peek')
+    deadline=time.monotonic()+timeout
+    try:
+        while True:
+            remaining=deadline-time.monotonic()
+            if remaining<=0:raise OfferError('lookup hint timed out')
+            sock.settimeout(remaining)
+            data=sock.recv(68,socket.MSG_PEEK)
+            if not data:raise OfferError('truncated lookup hint')
+            if len(data)>=68:return decode_selector(data[:68])
+            if not b'HPSL'.startswith(data[:4]):raise OfferError('invalid lookup hint')
+            time.sleep(.01)
+    except OSError as exc:raise OfferError('lookup hint read failed') from exc
+
+
 def read_selector(sock, *, timeout=10, prefix=b''):
     """Read exactly 68 bytes; leave any already queued TLS bytes untouched."""
     if not isinstance(sock,socket.socket) or not 0<timeout<=30:raise OfferError('invalid selector read')

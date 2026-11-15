@@ -27,10 +27,18 @@ class DiscoveryProcess:
                     if not isinstance(values,list) or len(values)>64:raise DiscoveryError('invalid discovery list')
                     item={'type':'hints','items':[validate_hint(v['name'],v['address'],v['port'],v['interface'],[b'v=2']) for v in values]}
                 elif item.get('type') not in ('ready','error'):raise DiscoveryError('invalid discovery status')
-                self.events.put_nowait(item)
+                self._put(item)
         except Exception:
-            try:self.events.put_nowait({'type':'error','message':'Discovery worker failed'})
-            except queue.Full:pass
+            self._put({'type':'error','message':'Discovery worker failed'})
+    def _put(self,item):
+        # A busy network can announce faster than the GUI polls. Each hint list
+        # replaces the previous one, so drop the oldest entry instead of
+        # treating a full queue as a worker failure.
+        while True:
+            try:self.events.put_nowait(item);return
+            except queue.Full:
+                try:self.events.get_nowait()
+                except queue.Empty:pass
     def poll(self):
         try:return self.events.get_nowait()
         except queue.Empty:return None
@@ -42,7 +50,10 @@ class DiscoveryProcess:
                     try:process.stdin.write(b'stop\n');process.stdin.flush()
                     except (OSError,ValueError):pass
                     try:process.wait(timeout=2)
-                    except subprocess.TimeoutExpired:process.terminate();process.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        process.terminate()
+                        try:process.wait(timeout=2)
+                        except subprocess.TimeoutExpired:process.kill();process.wait(timeout=2)
             finally:
                 for stream in (process.stdin,process.stdout):
                     try:stream.close()

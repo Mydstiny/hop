@@ -7,7 +7,7 @@ from .profiles import ProfileStore,_peer,_unique_object
 
 
 def _record(name,address,port):
-    if (not isinstance(name,str) or not name.strip() or len(name)>64 or any(ord(c)<32 for c in name) or
+    if (not isinstance(name,str) or not name.strip() or len(name)>128 or any(ord(c)<32 for c in name) or
         not isinstance(address,str) or len(address)>128 or type(port) is not int or not 1<=port<=65535):
         raise ValueError('invalid endpoint')
     try:ip=ipaddress.ip_address(address)

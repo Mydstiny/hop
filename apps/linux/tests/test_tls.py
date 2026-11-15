@@ -72,8 +72,8 @@ class TLSLoopbackTests(unittest.TestCase):
     def test_bidirectional_bytes_and_timeout(self):
         client, server = self.make_pair()
         try:
-            self.assertEqual(client._socket.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY), 1)
-            self.assertEqual(server._socket.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY), 1)
+            self.assertTrue(client._socket.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY))  # 1 on Linux, 4 on macOS
+            self.assertTrue(server._socket.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY))
             with self.assertRaises(TLSError): client.write_all(b"before-auth")
             self.handshake_pair(client, server)
             gc.collect()  # callback references remain alive for the entire native channel

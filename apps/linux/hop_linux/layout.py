@@ -15,10 +15,13 @@ import re
 import tempfile
 
 MAX_DEVICES = 32
-MAX_SCREENS = 8
+# The v2 wire limits: 64 screens per device, sides of 1..65535, and peer
+# names of up to 128 UTF-8 bytes (so at most 128 characters).
+MAX_SCREENS = 64
 MAX_DOCUMENT = 1024 * 1024
 MAX_COORD = 100000
-MAX_DIMENSION = 16384
+MAX_DIMENSION = 65535
+MAX_NAME = 128
 
 
 def _integer(value, low, high): return type(value) is int and low <= value <= high
@@ -51,7 +54,7 @@ class Device:
 
     def __post_init__(self):
         if (not isinstance(self.id, str) or not re.fullmatch(r"[0-9a-f]{64}", self.id) or
-            not isinstance(self.name, str) or not self.name.strip() or len(self.name) > 64 or
+            not isinstance(self.name, str) or not self.name.strip() or len(self.name) > MAX_NAME or
             any(ord(c) < 32 for c in self.name) or
             self.system not in ("macos", "windows", "linux", "harmonyos") or
             not _integer(self.x, -MAX_COORD, MAX_COORD) or not _integer(self.y, -MAX_COORD, MAX_COORD) or

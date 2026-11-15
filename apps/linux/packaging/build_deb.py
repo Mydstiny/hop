@@ -91,7 +91,7 @@ Depends: python3 (>= 3.10), python3-gi, python3-dbus, gir1.2-secret-1, libgtk-3-
 Recommends: avahi-daemon, gnome-keyring, fonts-noto-cjk
 Description: Share keyboard, pointer and clipboard across paired devices on X11
  Hop connects paired devices over a local network using mutually authenticated
- TLS. This release candidate targets Ubuntu 22.04 amd64 X11 desktop sessions.
+ TLS. This release candidate targets Ubuntu 22.04 and 24.04 amd64 X11 sessions.
 ''', encoding='utf-8')
         launcher = binary / PACKAGE
         launcher.write_text('''#!/bin/sh

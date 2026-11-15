@@ -38,7 +38,7 @@ class SyntheticHost(PairingController):
     def _monitor_snapshot(self, **_):
         return ((1, 0, 0, 1280, 900),)
 
-    def _start_control(self, session, route=None):
+    def _start_control(self, session, route=None, **_):
         assert session.peer_platform == 4 and session.transport.authenticated
         screen = session.screens[0][0]
         session.enter(screen, 32768, 32768)

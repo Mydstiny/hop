@@ -84,3 +84,13 @@ class ClipboardRuntimeTests(unittest.TestCase):
         ident=self.receiver_actor._reply(applied=True,version=4,installed_version=3)
         clip.operations[ident]=('install',epoch,2);clip._drain()
         self.assertEqual(clip.inner.deferred[3],2)
+    def test_large_value_moves_several_chunks_per_pump(self):
+        value=b'x'*(10*65520)
+        self.host_actor.value=value
+        cycles=0;end=time.monotonic()+5
+        while self.receiver_actor.value!=value and time.monotonic()<end:
+            self.cycle();cycles+=1
+        self.assertEqual(self.receiver_actor.value,value)
+        # One chunk per pump needed at least 11 cycles here (START + 10 chunks).
+        self.assertLess(cycles,9)
+        self.assertFalse(self.host_clip.sending)

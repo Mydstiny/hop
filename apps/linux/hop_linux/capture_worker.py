@@ -30,6 +30,8 @@ def main():
     host=X11Host(screen_id=config['screen_id'],target_size=tuple(config['target_size']),
                  capture_center=tuple(config['capture_center']),initial=tuple(config['initial']),profile=profile,
                  edge_directions=tuple(config.get('edge_directions',())))
+    from .x11_host import EmergencyRestore
+    emergency=False
     try:
         host.start(acknowledged=True,input_state_clear=True)
         _send(dict(type='ready'));last_tick=time.monotonic();forward=_Forward();pending=b''
@@ -46,8 +48,15 @@ def main():
                     if command==b'stop':return
                     if command!=b'tick':raise ValueError('invalid worker command')
                     last_tick=time.monotonic()
-            host.pump(forward)
-    finally:host.restore_local()
+            try:host.pump(forward)
+            except RuntimeError as exc:
+                if not isinstance(exc.__cause__,EmergencyRestore):raise
+                emergency=True;return
+    finally:
+        host.restore_local()
+        # Only once the grab is gone: the controller then ends focus but
+        # keeps the connection.
+        if emergency:_send(dict(type='emergency'))
 
 if __name__=='__main__':
     try:main()

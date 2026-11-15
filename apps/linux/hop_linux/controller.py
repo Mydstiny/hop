@@ -4,12 +4,9 @@ Network/Secret Service calls run on a dedicated worker. Discovery hints never
 establish trust. No physical input capture is started by this controller.
 """
 import queue
-import json
 import ipaddress
 import os
 import socket
-import subprocess
-import sys
 import threading
 import time
 from .discovery import DeviceHint
@@ -58,6 +55,7 @@ class PairingController:
         self.worker=None;self.stopping=threading.Event();self.hints=();self.screens=();self.state='idle'
         self.last_error=None
         self.active_socket=None;self.socket_lock=threading.Lock()
+        self.probe=None;self.probe_lock=threading.Lock()
 
     @staticmethod
     def _connect(hint):return socket.create_connection((hint.address,hint.port),timeout=8)
@@ -270,7 +268,7 @@ class PairingController:
             if candidate:
                 pending=self._review_candidate(candidate)
                 if pending is None:return
-                self.listener.settimeout(self._peer_confirm_budget());sock=self._remember_socket(self.listener.accept()[0])
+                sock=self._accept_selected_peer(pending,self._peer_confirm_budget())
             self.listener.close();self.listener=None
             self._close_discovery()
             self._serve_inbound(sock,pending=pending,prefix=prefix,peer_name=candidate.name if candidate else '已配对设备')
@@ -278,6 +276,25 @@ class PairingController:
         finally:
             if sock:sock.close()
             self._finish_listener(pending)
+
+    def _accept_selected_peer(self,pending,budget):
+        """Wait for the confirmed peer's TLS connection. Anything else that
+        arrives meanwhile (a scan, another trusted device reconnecting) is
+        closed instead of ending this pairing."""
+        from .pair_offer import OfferError,peek_selector
+        deadline=time.monotonic()+budget
+        while True:
+            remaining=deadline-time.monotonic()
+            if remaining<=0 or self.stopping.is_set():raise ControllerError('confirmed peer did not connect')
+            self.listener.settimeout(remaining)
+            try:sock=self.listener.accept()[0]
+            except socket.timeout:raise ControllerError('confirmed peer did not connect') from None
+            sock=self._remember_socket(sock)
+            try:
+                if peek_selector(sock,timeout=min(5,max(.01,deadline-time.monotonic()))).lower()==pending.peer_fingerprint.lower():return sock
+            except OfferError:pass
+            with self.socket_lock:self.active_socket=None
+            sock.close()
 
     def _review_candidate(self,candidate):
         if self.stopping.is_set():return None
@@ -376,7 +393,7 @@ class PairingController:
                 event=self.edge_observer.poll()
                 if event:self._enter_from_local_edge(session,event)
             if self.active_capture:self.active_capture.pump(session)
-            session.poll(.01 if self.active_capture else .05)
+            session.poll(.001 if self._clipboard_sending(session) else .01 if self.active_capture else .05)
             self._service_clipboard(session)
             if self.returning_local and session.phase=='local':
                 self.returning_local=False
@@ -396,9 +413,9 @@ class PairingController:
 
     def _local_input_unrecovered(self):
         """True when a session failed and this computer's keyboard and mouse may
-        still be grabbed. Only that justifies disabling every further handoff: an
-        emergency exit, a network drop or an unmapped key ends one session, and
-        the capture child that held the grab has already gone."""
+        still be grabbed. Only that justifies disabling every further handoff: a
+        network drop or a capture failure ends one session, and the capture child
+        that held the grab has already gone. An emergency exit keeps the session."""
         capture=self.active_capture
         if capture is None:return False
         try:capture.restore_local()
@@ -406,6 +423,7 @@ class PairingController:
         return not getattr(capture,'grab_released',False)
 
     def _finish_host_session(self,session):
+        self._close_probe()
         try:session.close()
         except Exception:
             if self.host_group:self.host_group.authority.poison()
@@ -446,37 +464,54 @@ class PairingController:
         if self.clipboard_state!=state:
             self.clipboard_state=state;self._event({'type':'clipboard_state','state':state})
 
+    @staticmethod
+    def _clipboard_sending(session):
+        return bool(getattr(session.clipboard,'sending',False))
+
     def _close_edge_observer(self):
         observer=self.edge_observer;self.edge_observer=None
         if observer:observer.close()
 
     def _enter_from_local_edge(self,session,event):
         from .layout_router import route_edge
+        # Most edge hits lead nowhere (a wall, or another peer's side); settle
+        # that from the observer's own coordinates before touching X11.
+        direction=event['direction']
+        hint=route_edge(self.layout,self.local_id,str(event['screen_id']),direction,event['x'],event['y'])
+        if not hint or hint.device_id!=session.transport.peer_fingerprint:return
         try:monitors,position=self._monitor_snapshot(require_input_clear=True,include_pointer=True)
         except ControllerError:return # held inputs: do not steal their release
         if monitors!=self.local_screens:raise ControllerError('local monitor configuration changed')
         screen=next((s for s in monitors if s[0]==event['screen_id']),None)
         if not screen:return
-        _,sx,sy,w,h=screen;px,py=position;direction=event['direction']
+        _,sx,sy,w,h=screen;px,py=position
         if not (sx<=px<sx+w and sy<=py<sy+h):return
         if not ((direction=='left' and px==sx) or (direction=='right' and px==sx+w-1) or
                 (direction=='up' and py==sy) or (direction=='down' and py==sy+h-1)):return
-        nx=round((px-sx)*65535/(w-1));ny=round((py-sy)*65535/(h-1))
+        nx=round((px-sx)*65535/(w-1)) if w>1 else 0;ny=round((py-sy)*65535/(h-1)) if h>1 else 0
         route=route_edge(self.layout,self.local_id,str(event['screen_id']),direction,nx,ny)
         if not route or route.device_id!=session.transport.peer_fingerprint:return
-        self._close_edge_observer();self._start_control(session,route)
+        self._close_edge_observer();self._start_control(session,route,monitors=monitors)
+
+    def _x11_probe(self):
+        with self.probe_lock:
+            if self.probe is None:
+                from .probe_process import X11Probe
+                self.probe=X11Probe()
+            return self.probe
+
+    def _close_probe(self):
+        with self.probe_lock:probe,self.probe=self.probe,None
+        if probe:probe.close()
 
     def _monitor_snapshot(self,require_input_clear=False,include_pointer=False):
-        command=[sys.executable,'-B','-m','hop_linux.monitor_probe']
-        if require_input_clear:command.append('--require-input-clear')
-        if include_pointer:
-            if not require_input_clear:raise ValueError('pointer probe requires input-state check')
-            command.append('--pointer')
-        probe=subprocess.run(command,capture_output=True,text=True,timeout=5)
-        if probe.returncode:raise ControllerError('local monitor probe failed')
-        value=json.loads(probe.stdout)
-        monitors=value.get('screens') if include_pointer and isinstance(value,dict) else value
+        from .probe_process import ProbeError
+        if include_pointer and not require_input_clear:raise ValueError('pointer probe requires input-state check')
+        try:value=self._x11_probe().snapshot(clear=require_input_clear,pointer=include_pointer)
+        except ProbeError as exc:raise ControllerError('local monitor probe failed') from exc
+        monitors=value.get('screens')
         if not isinstance(monitors,list) or not monitors:raise ControllerError('no local monitor')
+        if any(not isinstance(m,list) or len(m)!=5 or any(type(v) is not int for v in m) for m in monitors):raise ControllerError('invalid local monitor')
         screens=tuple(tuple(m) for m in monitors)
         if include_pointer:
             position=value.get('pointer')
@@ -513,12 +548,14 @@ class PairingController:
         if self.host_group:self.host_group.set_layout(layout)
         else:self.layout=layout
 
-    def _start_control(self,session,route=None):
+    def _start_control(self,session,route=None,monitors=None):
         from .shortcut import ShortcutTranslator
         from .x11_host_process import X11HostProcess
         if session.phase!='local' or not session.screens:raise ControllerError('no target screen')
         if route and route.device_id!=session.transport.peer_fingerprint:raise ControllerError('target identity changed')
-        try:monitors=self._monitor_snapshot(require_input_clear=True)
+        try:
+            # An edge entry has just checked; a button entry checks here.
+            if monitors is None:monitors=self._monitor_snapshot(require_input_clear=True)
         except ControllerError:
             # A key or button is held. Nothing has been sent
             # or claimed yet, so report it and keep the connection.
@@ -537,7 +574,8 @@ class PairingController:
                 self._event({'type':'focus_busy'});return
         translator=ShortcutTranslator(self.shortcut_library,3,session.peer_platform)
         capture=X11HostProcess(screen_id=screen_id,target_size=(tw,th),capture_center=(x+w//2,y+h//2),initial=initial,translator=translator,profile=self.profile,
-            edge_directions=('left','right','up','down') if self.layout else (),on_edge=lambda current,event:self._return_to_local(current,screen_id,event))
+            edge_directions=('left','right','up','down') if self.layout else (),on_edge=lambda current,event:self._return_to_local(current,screen_id,event),
+            on_emergency=self._emergency_return)
         session.sink=capture;self.active_capture=capture
         self._close_edge_observer();session.enter(screen_id,*initial)
         deadline=time.monotonic()+3
@@ -545,6 +583,13 @@ class PairingController:
         if self.stopping.is_set() or session.phase!='remote':raise ControllerError('remote focus was not acknowledged')
         capture.start(session)
         self._event({'type':'controlling'})
+
+    def _emergency_return(self,session):
+        """Ctrl+Shift+Alt+Esc: the capture child has already dropped its grab.
+        Release focus like the return button does and keep the connection."""
+        if session.phase!='remote':return False
+        session.release();self.active_capture=None;self.returning_local=True
+        return True
 
     def _return_to_local(self,session,screen_id,event):
         from .layout_router import route_edge
@@ -563,8 +608,9 @@ class PairingController:
         _,x,y,w,h=local
         px=x+(route.x*(w-1)+32767)//65535;py=y+(route.y*(h-1)+32767)//65535
         session.release();self.active_capture=None;self.returning_local=True
-        result=subprocess.run([sys.executable,'-B','-m','hop_linux.local_pointer',str(px),str(py)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=2)
-        if result.returncode:raise ControllerError('local pointer restoration failed')
+        from .probe_process import ProbeError
+        try:self._x11_probe().warp(px,py)
+        except ProbeError as exc:raise ControllerError('local pointer restoration failed') from exc
         return True
 
     def _peer_confirm_budget(self):
@@ -685,7 +731,7 @@ class ReceiverPairingController(PairingController):
             self._event({'type':'connected','peer':peer_name})
             next_check=time.monotonic()+.5
             while not self.stopping.is_set() and not session.closed:
-                session.poll(.05)
+                session.poll(.001 if self._clipboard_sending(session) else .05)
                 self._service_clipboard(session)
                 if backend and time.monotonic()>=next_check:
                     if backend.screens()!=screens:raise ControllerError('monitor configuration changed')

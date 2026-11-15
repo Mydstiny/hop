@@ -46,40 +46,138 @@ jobs:
       - name: TLS, session pump and HarmonyOS fake-SDK tests
         run: sh core/tests/run_tls.sh
 
-  # The Linux client targets Ubuntu 22.04, so run its tests on that Python.
+  # The Linux client targets Ubuntu 22.04 and 24.04 on X11. Each runs the unit
+  # tests against the real TLS runtime, then the full suite on a private Xvfb.
   linux-client:
-    name: Linux client and tools (Ubuntu 22.04)
-    runs-on: ubuntu-22.04
+    name: Linux client (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    env:
+      HOP_NATIVE: ${{ github.workspace }}/build/linux-native
+      HOP_FIXTURES: ${{ github.workspace }}/build/linux-fixtures
     steps:
       - uses: actions/checkout@v4
+      - name: Install X11, GTK and test packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth python3-gi python3-dbus \
+            gir1.2-gtk-3.0 gir1.2-secret-1 libx11-6 libxtst6 libxi6 libxrandr2 libxfixes3 \
+            libgdk-pixbuf-2.0-0 xkb-data
       - name: Generated keymaps are current
+        if: matrix.os == 'ubuntu-22.04'
         run: |
           python3 tools/generate_keymap.py --check
           python3 tools/generate_hid_keymap.py --check
       - name: Tool and v1 mock-peer tests
+        if: matrix.os == 'ubuntu-22.04'
         run: |
           python3 -B tools/test_verify.py
           python3 -B tools/test_device_preflight.py
           python3 -B tools/test_resolve_xcode.py
           python3 -B -m unittest discover -s tools/mock-peer
-      - name: Build the shared shortcut and clipboard runtimes
-        run: |
-          mkdir -p build/linux-runtime
-          g++ -std=c++17 -O2 -shared -fPIC -Icore/include \
-            core/src/input_policy.cpp core/src/shortcut_translator.cpp core/src/shortcut_translator_c.cpp \
-            -o build/linux-runtime/libhop_shortcut_runtime.so
-          g++ -std=c++17 -O2 -shared -fPIC -Icore/include \
-            core/src/clipboard_transfer.cpp core/src/clipboard_transfer_c.cpp \
-            -o build/linux-runtime/libhop_clipboard_runtime.so
+      - name: Build the TLS, shortcut and clipboard runtimes
+        run: bash apps/linux/scripts/build-native.sh "$HOP_NATIVE"
+      - name: Make disposable loopback identities
+        run: /usr/bin/python3 -B apps/linux/tests/make_tls_fixtures.py "$HOP_NATIVE/libhop_tls_runtime.so" "$HOP_FIXTURES"
       - name: Linux client unit tests
         working-directory: apps/linux
         env:
-          HOP_TEST_SHORTCUT_LIBRARY: ${{ github.workspace }}/build/linux-runtime/libhop_shortcut_runtime.so
-          HOP_TEST_CLIPBOARD_LIBRARY: ${{ github.workspace }}/build/linux-runtime/libhop_clipboard_runtime.so
+          HOP_TEST_TLS_LIBRARY: ${{ env.HOP_NATIVE }}/libhop_tls_runtime.so
+          HOP_TEST_TLS_FIXTURE_DIR: ${{ env.HOP_FIXTURES }}
+          HOP_TEST_SHORTCUT_LIBRARY: ${{ env.HOP_NATIVE }}/libhop_shortcut_runtime.so
+          HOP_TEST_CLIPBOARD_LIBRARY: ${{ env.HOP_NATIVE }}/libhop_clipboard_runtime.so
         run: |
-          python3 --version
-          python3 -B -m compileall -q hop_linux packaging
-          python3 -B -m unittest discover -s tests -p 'test_*.py'
+          /usr/bin/python3 --version
+          /usr/bin/python3 -B -m compileall -q hop_linux packaging
+          /usr/bin/python3 -B -m unittest discover -s tests -p 'test_*.py'
+      - name: Full suite on a private Xvfb server
+        working-directory: apps/linux
+        timeout-minutes: 15
+        env:
+          HOP_TEST_TLS_LIBRARY: ${{ env.HOP_NATIVE }}/libhop_tls_runtime.so
+          HOP_TEST_TLS_FIXTURE_DIR: ${{ env.HOP_FIXTURES }}
+          HOP_TEST_SHORTCUT_LIBRARY: ${{ env.HOP_NATIVE }}/libhop_shortcut_runtime.so
+          HOP_TEST_CLIPBOARD_LIBRARY: ${{ env.HOP_NATIVE }}/libhop_clipboard_runtime.so
+          HOP_TEST_XVFB: /usr/bin/Xvfb
+          NO_AT_BRIDGE: '1'
+        run: |
+          export HOP_TEST_PRIVATE="$RUNNER_TEMP/hop-xvfb"
+          mkdir -m 700 "$HOP_TEST_PRIVATE"
+          unset DISPLAY WAYLAND_DISPLAY
+          PYTHONPATH="$PWD:$PWD/tests" /usr/bin/python3 -B tests/xvfb_integration.py --run-virtual-x11-test
+      - name: Keep the Xvfb logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-xvfb-logs-${{ matrix.os }}
+          path: ${{ runner.temp }}/hop-xvfb/*.log
+          if-no-files-found: ignore
+
+  # The .deb is built once on the oldest supported release and installed on
+  # both, so the runtime libraries are checked against each system's libraries.
+  linux-package:
+    name: Linux package (build on 22.04)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the runtimes
+        run: bash apps/linux/scripts/build-native.sh "$RUNNER_TEMP/native"
+      - name: Build the package
+        run: |
+          native="$RUNNER_TEMP/native"; mkdir dist
+          args=()
+          for name in tls shortcut clipboard; do
+            lib="$native/libhop_${name}_runtime.so"
+            args+=("--$name" "$lib" "--$name-sha256" "$(sha256sum "$lib" | cut -d' ' -f1)")
+          done
+          SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) python3 -B apps/linux/packaging/build_deb.py "${args[@]}" \
+            --mbedtls-license "$native/mbedtls-LICENSE" --output-dir "$PWD/dist"
+          (cd dist && sha256sum hop-input_*.deb > SHA256SUMS-linux && cat SHA256SUMS-linux)
+          dpkg-deb --info dist/hop-input_*.deb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hop-linux-deb
+          path: dist/
+          if-no-files-found: error
+
+  linux-package-install:
+    name: Install the package (${{ matrix.os }})
+    needs: linux-package
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: hop-linux-deb
+          path: dist
+      - name: Install, check and remove
+        run: |
+          set -euo pipefail
+          cd dist && sha256sum --check SHA256SUMS-linux && cd ..
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth ./dist/hop-input_*.deb
+          hop-input --check | tee check.json
+          python3 -c "import json,sys; v=json.load(open('check.json')); sys.exit(0 if v['x11_runtime_libraries_present'] else 'X11 libraries missing')"
+          (cd /usr/lib/hop-input && sha256sum --check /usr/share/doc/hop-input/runtime.sha256)
+          # The packaged libraries load here and make a working identity.
+          PYTHONPATH=/usr/lib/hop-input /usr/bin/python3 -B -c "
+          from hop_linux.tls import TLSLibrary
+          lib = TLSLibrary('/usr/lib/hop-input/libhop_tls_runtime.so')
+          cert, key = lib.generate_identity()
+          assert lib.validate_identity(cert, key)
+          print('TLS runtime OK', lib.certificate_fingerprint(cert)[:16])"
+          # GTK and the X11 bindings import under a throwaway X server.
+          PYTHONPATH=/usr/lib/hop-input xvfb-run -a /usr/bin/python3 -B -c "
+          import hop_linux.app_ui, hop_linux.x11
+          with hop_linux.x11.X11Backend() as x: print('X11 screens', x.screens())"
+          sudo apt-get remove -y hop-input
+          if [ -e /usr/bin/hop-input ] || [ -e /usr/lib/hop-input ]; then echo "removal left files"; exit 1; fi
 
   # Swift unit, loopback and C++/Swift parity tests. Nothing here launches Hop,
   # captures input, or writes to the Keychain.

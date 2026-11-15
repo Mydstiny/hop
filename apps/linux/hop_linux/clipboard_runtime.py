@@ -5,6 +5,7 @@ No system selection is read until focus and bilateral READY are established.
 """
 import queue
 import threading
+import time
 from .clipboard import TEXT,PNG,validate_payload
 from .clipboard_actor import ClipboardActor,ClipboardActorError
 from .clipboard_assembler import ClipboardAssembler
@@ -12,6 +13,10 @@ from .clipboard_initial import InitialSnapshot
 from .clipboard_session import ClipboardSender,ClipboardSession
 from .clipboard_sync import ClipboardCoordinator
 from .png_decoder import BoundedPNGDecoder
+
+# Per pump call: at most this many 64 KiB chunks, or this many seconds.
+_SEND_FRAMES=16
+_SEND_BUDGET=.004
 
 
 class ClipboardRuntime:
@@ -142,15 +147,28 @@ class ClipboardRuntime:
                 self.initial=InitialSnapshot(self.sender,cancel_read=self.actor.cancel_read)
                 self.last_seen=self.actor.version
                 self.initial.begin(session,self.last_seen,lambda epoch:self._request_source(session,epoch))
-            self.initial.pump(session,self.actor.version)
+            # A few chunks per call, bounded in time, so a large value moves at
+            # network speed while input still runs between batches.
+            deadline=time.monotonic()+_SEND_BUDGET
+            for _ in range(_SEND_FRAMES):
+                if not self.initial.pump(session,self.actor.version) or time.monotonic()>=deadline:break
             if self.initial.state=='done':self.read_id=None
             return
         if not session.clipboard_send_ready():return
         if self.sender.active:
-            frame=self.sender.next_frame(self.epoch,self.actor.version)
-            if frame:session.send_clipboard_frame(*frame)
+            deadline=time.monotonic()+_SEND_BUDGET
+            for _ in range(_SEND_FRAMES):
+                frame=self.sender.next_frame(self.epoch,self.actor.version)
+                if not frame:break
+                session.send_clipboard_frame(*frame)
+                if not self.sender.active or time.monotonic()>=deadline:break
         elif self.read_id is None and not self.validating and self.actor.version!=self.last_seen:
             self.last_seen=self.actor.version;self._request_source(session,self.epoch)
+
+    @property
+    def sending(self):
+        """True while an outgoing value still has chunks to write."""
+        return bool(self.sender.active) or bool(self.initial and self.initial.state=='sending')
 
     def close(self):
         if self.closed:return

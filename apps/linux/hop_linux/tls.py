@@ -166,6 +166,7 @@ class SecureSocket:
         self._authenticated = False
         self._want = "read"
         self._error = 0
+        self._read_buffer = None
 
         @_SEND
         def send(_context, data, size):
@@ -278,12 +279,16 @@ class SecureSocket:
         if type(max_bytes) is not int or not 1 <= max_bytes <= _MAX_IO: raise ValueError("invalid read size")
         if not isinstance(timeout, (int, float)) or not 0 < timeout <= 120: raise ValueError("invalid TLS timeout")
         deadline = time.monotonic() + timeout
-        data = (C.c_ubyte * max_bytes)()
+        # One native buffer per channel: a fresh zeroed 64 KiB array per poll
+        # was most of the cost of an idle session loop.
+        data = self._read_buffer
+        if data is None or len(data) < max_bytes:
+            data = self._read_buffer = (C.c_ubyte * max_bytes)()
         while True:
             result = self._library.lib.hop_tls_read(self._channel, data, max_bytes)
             if result > 0:
                 if result > max_bytes: self._fatal("TLS returned an invalid read length")
-                return bytes(data[:result])
+                return C.string_at(data, result)
             if result in (self._library.want_read, self._library.want_write):
                 self._want = "read" if result == self._library.want_read else "write"
                 if not self._wait(deadline): return None

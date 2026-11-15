@@ -236,6 +236,46 @@ with private_x_server() as display_env:
         with X11Backend() as probe: probe.grab();probe.ungrab()
     finally: stalled.restore_local()
     print('PASS: capture subprocess starts after GTK, and rejects held X11 keys and XI2 side buttons')
+    # The controller's long-lived probe: one child answers every query, reports
+    # held input without restarting, and warps this server's pointer.
+    from hop_linux.probe_process import X11Probe, ProbeBusy
+    probe_child = X11Probe()
+    try:
+        first = probe_child.snapshot(); started = probe_child.process.pid
+        if first['screens'] != [list(m) for m in monitors]: raise AssertionError('probe saw other monitors: ' + repr(first))
+        probe_child.warp(321, 234)
+        if tuple(probe_child.snapshot(clear=True, pointer=True)['pointer']) != (321, 234): raise AssertionError('probe warp not applied')
+        with X11Backend() as sender:
+            mapping = sender.keymap(); sender.key_hid(mapping, 4, True)
+            try:
+                try: probe_child.snapshot(clear=True)
+                except ProbeBusy: pass
+                else: raise AssertionError('probe ignored a held key')
+            finally: sender.key_hid(mapping, 4, False)
+        probe_child.snapshot(clear=True)
+        if probe_child.process.pid != started: raise AssertionError('probe restarted between queries')
+    finally: probe_child.close()
+    print('PASS: persistent monitor probe reuses one X11 connection, reports held keys and warps the pointer')
+    # Ctrl+Shift+Alt+Esc in the capture child releases focus and keeps the session.
+    stream=FakeSession();stream.role='host';stream.phase='remote';stream.transport=SimpleNamespace(authenticated=True)
+    released=[]
+    def release_focus(current):
+        current.sink.restore_local();released.append(current.sink.grab_released);return True
+    escape=X11HostProcess(screen_id=7,target_size=(1280,900),capture_center=(640,450),on_emergency=release_focus)
+    stream.sink=escape;escape.start(stream)
+    try:
+        with X11Backend() as sender:
+            mapping=sender.keymap()
+            for usage in (0xE1,0xE0,0xE2,0x29):sender.key_hid(mapping,usage,True)
+            end=time.monotonic()+3
+            while not released and time.monotonic()<end:
+                escape.pump(stream);time.sleep(.01)
+            for usage in (0x29,0xE2,0xE0,0xE1):sender.key_hid(mapping,usage,False)
+        if released!=[True]:raise AssertionError('emergency chord did not hand focus back: '+repr(released))
+        if any(kind=='key' and fields['usage']==0x29 for kind,fields in stream.events):raise AssertionError('Escape reached the remote')
+        with X11Backend() as probe: probe.grab();probe.ungrab()
+    finally: escape.restore_local()
+    print('PASS: emergency chord in the capture child releases focus without ending the session')
     from session_xvfb_test import run as run_session
     run_session()
     from session_xvfb_test import run_host

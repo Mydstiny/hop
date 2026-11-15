@@ -17,6 +17,10 @@ _MOD_BITS = {0xE1:0,0xE5:1,0xE0:2,0xE4:3,0xE2:4,0xE6:5,0xE3:6,0xE7:7}
 _BUTTONS = {1:1,3:2,2:3,8:4,9:5}
 
 
+class EmergencyRestore(RuntimeError):
+    """Ctrl+Shift+Alt+Esc: give this computer its keyboard and mouse back."""
+
+
 class X11Host:
     def __init__(self, *, screen_id, target_size, capture_center, initial=(32768,32768),
                  profile=None, backend_factory=X11Backend, watchdog=1.0, edge_directions=()):
@@ -107,7 +111,7 @@ class X11Host:
                         if usage in _MOD_BITS:
                             bit=1<<_MOD_BITS[usage];self.mods=(self.mods|bit) if event.down else (self.mods&~bit)
                         if usage==0x29 and event.down and self.mods&3 and self.mods&12 and self.mods&48:
-                            raise RuntimeError('emergency local input restore')
+                            raise EmergencyRestore('emergency local input restore')
                         mods=self.mods|(256 if event.state&2 else 0)
                         self._push('key',dict(usage=usage,modifiers=mods,down=int(event.down),repeat=int(repeat)))
                     elif event.kind=='button':
