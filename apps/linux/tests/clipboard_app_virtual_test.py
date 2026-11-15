@@ -283,6 +283,11 @@ def run(private_x_server):
             hosts[letter] = PairingController(name='Host', certificate=ca, private_key=ka, tls_library=lib,
                 trust_store=Store(), discovery_factory=Discovery, connector=connector, shortcut_library=shortcut,
                 clipboard_library=clipboard, host_group=group)
+            # Event types per host, for failure messages.
+            host = hosts[letter]; host.trace = []
+            def traced(item, host=host, emit=host._event):
+                host.trace.append(item.get('type')); del host.trace[:-12]; emit(item)
+            host._event = traced
 
         workspace = GtkHostWorkspace(iter(hosts.values()).__next__)
         primary = workspace.add_device(primary=True)
@@ -302,7 +307,7 @@ def run(private_x_server):
                 if check():
                     return
                 time.sleep(.01)
-            status = {k: (h.state, h.clipboard_state, h.last_error) for k, h in hosts.items()}
+            status = {k: (h.state, h.clipboard_state, h.last_error, h.trace) for k, h in hosts.items()}
             raise AssertionError((description, status, {k:p.call('state') for k,p in peers.items()}))
 
         def move(letter, direction):
