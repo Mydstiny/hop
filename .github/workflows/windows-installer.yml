@@ -90,7 +90,8 @@ jobs:
         run: |
           $setup = "dist\Hop-Setup-$env:HOP_VERSION-windows-x64.exe"
           $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLower()
-          "$hash  $(Split-Path $setup -Leaf)" | Out-File -Encoding ascii dist\SHA256SUMS-windows
+          # LF endings, so `shasum -c` on macOS and Linux reads the file name.
+          [IO.File]::WriteAllText("$PWD\dist\SHA256SUMS-windows", "$hash  $(Split-Path $setup -Leaf)`n")
           Get-Content dist\SHA256SUMS-windows
       - uses: actions/upload-artifact@v4
         with:
