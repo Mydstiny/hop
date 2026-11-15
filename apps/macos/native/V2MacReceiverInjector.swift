@@ -265,7 +265,9 @@ final class V2QuartzInputBackend: V2MacInputBackend {
     }
     var authorized: Bool { CGPreflightPostEventAccess() }
     func canBegin() -> Bool {
-        let modifiers: CGEventFlags = [.maskAlphaShift, .maskShift, .maskControl, .maskAlternate, .maskCommand, .maskSecondaryFn]
+        // Caps Lock is a latch, not a held key. Refusing it here failed ENTER,
+        // which ends the whole session.
+        let modifiers: CGEventFlags = [.maskShift, .maskControl, .maskAlternate, .maskCommand, .maskSecondaryFn]
         return localKeysAreUp() && CGEventSource.flagsState(.hidSystemState).intersection(modifiers).isEmpty &&
             (0..<32).allSatisfy { raw in
                 guard let button = CGMouseButton(rawValue: UInt32(raw)) else { return true }

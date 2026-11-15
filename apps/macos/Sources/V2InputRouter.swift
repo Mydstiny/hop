@@ -35,7 +35,8 @@ final class V2InputRouter {
         guard let delegate else { return }
         if message.type == .enter {
             guard selectedScreen != 0, pending == nil, active == nil, message.epoch != 0,
-                  (try? Message(body: message.body)) != nil, message.payload.u16(4) == 0, message.payload.u16(6) == 0 else { fail(); return }
+                  (try? Message(body: message.body)) != nil, message.payload.u16(4) & ~UInt16(256) == 0,
+                  message.payload.u16(6) == 0 else { fail(); return }
             pending = Pending(screen: selectedScreen, message: message)
             delegate.requestV2Entry(screen: selectedScreen, x: message.payload.u16(0), y: message.payload.u16(2), captureEpoch: message.epoch)
             return

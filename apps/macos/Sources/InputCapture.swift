@@ -11,8 +11,11 @@ extension UserDefaults: PointerSettingsStore {}
 
 /// The current v2 session accepts only a neutral input snapshot at ENTER.
 /// Refuse crossing instead of dropping held state or inventing releases.
+/// Caps Lock (bit 256) is a latch, not a held key: each computer keeps its own,
+/// and a Caps Lock press while controlling toggles the remote one. Windows
+/// hosts cross the same way.
 func permitsFocusEntry(modifiers: UInt16, buttons: UInt16, nonmodifierKeysUp: Bool, requireNeutralState: Bool) -> Bool {
-    nonmodifierKeysUp && (!requireNeutralState || (modifiers == 0 && buttons == 0))
+    nonmodifierKeysUp && (!requireNeutralState || (modifiers & ~UInt16(256) == 0 && buttons == 0))
 }
 
 /// Derive the remote modifier snapshot from the actual CGEvent, rather than
@@ -150,6 +153,7 @@ final class InputCapture {
     private(set) var generation: UInt64 = 0
     private var cooldownUntil: TimeInterval = 0
     private var nextTapCheck: TimeInterval = 0
+    private var nextOwnershipCheck: TimeInterval = 0
     private var insideSince: TimeInterval = 0
     private var wheelDiagnostics = Set<UInt8>()
     var ignoredEventSourceUserData: Int64?
@@ -273,6 +277,11 @@ final class InputCapture {
                 if let tap = owner.tap { CGEvent.tapEnable(tap: tap, enable: true) }
                 owner.tapUsable = true
                 hopLog("event tap timeout — re-enabled")
+                // While the tap was off, keys meant for the other computer reached
+                // local apps and its releases were never forwarded. Hand focus
+                // back now (a normal release, not a disconnect) so the user sees
+                // where input goes and the receiver drops whatever it holds.
+                owner.returnAfterTapGap()
                 return Unmanaged.passUnretained(event)
             }
             if type == .tapDisabledByUserInput {
@@ -312,6 +321,28 @@ final class InputCapture {
             guard let self, self.generation == expected, self.stopWhenDrained, !self.ownership.needsDrain else { return }
             self.removeTap() // never invalidate the active tap inside its callback
         }
+    }
+    /// Secure Input, a tap gap or an unplugged device can hide a key-up, and a
+    /// stale entry would block crossing until Hop restarts. Drop entries that
+    /// are no longer physically held. Intersection only removes, so a spurious
+    /// "held" report from keyState cannot add one.
+    private func reconcileMissedReleases() {
+        let o = ownership
+        guard tapUsable, monotonicNow() >= nextOwnershipCheck,
+              !(o.localKeys.isEmpty && o.localButtons.isEmpty && o.remoteKeys.isEmpty && o.remoteButtons.isEmpty) else { return }
+        nextOwnershipCheck = monotonicNow() + 1
+        let keys = o.localKeys.union(o.remoteKeys).filter { CGEventSource.keyState(.hidSystemState, key: $0) }
+        let buttons = o.localButtons.union(o.remoteButtons).filter {
+            $0 >= 0 && CGEventSource.buttonState(.hidSystemState, button: CGMouseButton(rawValue: UInt32($0))!)
+        }
+        ownership.reconcile(heldKeys: Set(keys), heldButtons: Set(buttons))
+        removeDrainedTapLater()
+    }
+    /// The tap missed events while focus was away. Return locally with LEAVE
+    /// reason 2 (recovery); the session stays up.
+    func returnAfterTapGap() {
+        guard mode != .local else { return }
+        let old = restore(); if let old { send(.point(.leave, epoch: old, x: 0, y: 0, extra: [2])) }; changed()
     }
     private func restoreAndReportFault(_ text: String, reason: UInt8) {
         restore() // synchronous FIRST; controller defers all stop/network/UI work
@@ -378,9 +409,12 @@ final class InputCapture {
                     return
                 }
                 hopLog("event tap found disabled — re-enabled")
+                returnAfterTapGap()
+                return
             }
         }
         if mode == .remote { freezeLocalCursor() }
+        if mode == .local { reconcileMissedReleases() }
         if mode == .local, hidden || disassociated || appKitHidden || !extraHiddenDisplays.isEmpty { restore() } // retry failed native restoration, never re-enable swallowing
         if mode == .pending, monotonicNow() - enteredAt >= 1.0 {
             hopLog("enter timeout")
@@ -452,7 +486,7 @@ final class InputCapture {
     var canContinueRouting: Bool {
         tapUsable && !stopWhenDrained && !ownership.needsDrain && ownership.localKeys.isEmpty && ownership.localButtons.isEmpty
     }
-    var crossingKeysAreUp: Bool { heldKeys.isEmpty && buttons == 0 && modifiers == 0 }
+    var crossingKeysAreUp: Bool { heldKeys.isEmpty && buttons == 0 && modifiers & ~UInt16(256) == 0 }
     /// A LEAVE names the last displayed edge. Accept it only while the
     /// physical pointer is still near that edge and position on our host.
     func matchesRemoteEdge(x: UInt16, y: UInt16, horizontalBoundary: Bool? = nil) -> Bool {

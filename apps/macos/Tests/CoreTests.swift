@@ -286,6 +286,9 @@ private final class Fixture {
         let heldDelegate = FakeV2InputDelegate(), heldRouter = V2InputRouter(keymap: hid, delegate: heldDelegate)
         heldRouter.selectedScreen = 7; heldRouter.captured(.point(.enter, epoch: 9, x: 0, y: 0, extra: [0,64,0,0]))
         expect(heldDelegate.entry == nil && heldDelegate.events == ["restore","abort"], "v2 router rejects a held modifier at entry")
+        let capsDelegate = FakeV2InputDelegate(), capsRouter = V2InputRouter(keymap: hid, delegate: capsDelegate)
+        capsRouter.selectedScreen = 7; capsRouter.captured(.point(.enter, epoch: 9, x: 5, y: 6, extra: [1,0,0,0]))
+        expect(capsDelegate.entry?.0 == 7 && capsDelegate.events.isEmpty, "v2 router enters with only the Caps Lock latch set")
         expect(canonical.modifiers.count == 9 && canonical.code(symbol: "kVK_Escape") != nil, "modifier/escape codes derive from canonical map")
         var moves = MoveCoalescer()
         for x in 0..<1000 { moves.offer(.point(.move, epoch: 1, x: UInt16(x), y: 0)) }

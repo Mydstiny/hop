@@ -82,7 +82,8 @@ private final class MemoryPointerSettings: PointerSettingsStore {
         check(MouseTuning(reportRateHz: 1000).valid, "1000 Hz forwarding ceiling is configurable")
         check(permitsFocusEntry(modifiers: 0, buttons: 0, nonmodifierKeysUp: true, requireNeutralState: true), "v2 neutral entry accepted")
         check(!permitsFocusEntry(modifiers: 64, buttons: 0, nonmodifierKeysUp: true, requireNeutralState: true), "v2 held modifier prevents entry")
-        check(!permitsFocusEntry(modifiers: 256, buttons: 0, nonmodifierKeysUp: true, requireNeutralState: true), "v2 caps latch is not silently dropped")
+        check(permitsFocusEntry(modifiers: 256, buttons: 0, nonmodifierKeysUp: true, requireNeutralState: true), "v2 caps latch does not block entry")
+        check(!permitsFocusEntry(modifiers: 256 | 1, buttons: 0, nonmodifierKeysUp: true, requireNeutralState: true), "v2 caps latch with a held Shift still blocks entry")
         check(!permitsFocusEntry(modifiers: 0, buttons: 1, nonmodifierKeysUp: true, requireNeutralState: true), "v2 held button prevents entry")
         check(!permitsFocusEntry(modifiers: 0, buttons: 0, nonmodifierKeysUp: false, requireNeutralState: true), "v2 ordinary held key prevents entry")
         check(permitsFocusEntry(modifiers: 64, buttons: 1, nonmodifierKeysUp: true, requireNeutralState: false), "legacy entry behavior retained")
@@ -117,6 +118,13 @@ private final class MemoryPointerSettings: PointerSettingsStore {
             check(input.recoveryTestButton(0, down: false) && !input.recoveryTestDrag(0), "\(label) button release drains drag quarantine")
             check(!input.recoveryTestNeedsDrain, "\(label) all physical tails drained")
         }
+        calls.removeAll(); input.stageRecoveryTest(); sent.removeAll()
+        input.returnAfterTapGap()
+        check(input.mode == .local && calls == ["associate", "show", "warp"] && sent.count == 1 && sent[0].type == .leave &&
+              sent[0].epoch == 42 && sent[0].payload[4] == 2, "a tap gap returns locally with a recovery LEAVE, not a fault")
+        input.returnAfterTapGap()
+        check(sent.count == 1, "a tap gap while already local sends nothing")
+        sent.removeAll()
         calls.removeAll(); input.stageRecoveryTest(remote: false)
         check(input.restore() == 42 && calls.isEmpty && input.recoveryTestIsCleared, "ENTER pending restoration never shows/warps/hides cursor")
         calls.removeAll(); input.stageRecoveryTest(); associateFails = true
