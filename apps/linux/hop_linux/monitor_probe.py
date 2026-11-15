@@ -8,7 +8,7 @@ def main():
     args=sys.argv[1:]
     if args not in ([],['--require-input-clear'],['--require-input-clear','--pointer']):raise ValueError('invalid probe mode')
     with X11Backend() as backend:
-        if args and not backend.input_state_clear():raise RuntimeError('keys, buttons or Caps Lock active')
+        if args and not backend.input_state_clear():raise RuntimeError('keys or buttons held')
         screens=backend.screens()
         result={'screens':screens,'pointer':backend.pointer_position()} if '--pointer' in args else screens
         print(json.dumps(result,separators=(',',':')))

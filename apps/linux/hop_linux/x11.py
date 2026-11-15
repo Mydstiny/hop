@@ -230,8 +230,10 @@ class _Native:
         rx, ry, wx, wy = (C.c_int() for _ in range(4)); mask = C.c_uint()
         if not self.x.XQueryPointer(display, root, C.byref(root_out), C.byref(child), C.byref(rx), C.byref(ry), C.byref(wx), C.byref(wy), C.byref(mask)):
             raise RuntimeError("cannot query X11 pointer state")
-        # ENTER does not yet synchronize latched Caps/Shift lock state.
-        if any(keys.raw) or mask.value & ((0x1f << 8) | (1 << 1)): return False
+        # Caps Lock (LockMask) is a latch, not a held key: each side keeps its
+        # own, and a Caps Lock press while controlling toggles the remote one.
+        # Windows hosts cross the same way. Only held keys and buttons block.
+        if any(keys.raw) or mask.value & (0x1f << 8): return False
         # XI2 includes side buttons and attached devices absent from the core
         # pointer mask. Refuse capture when the extension cannot be checked.
         xi = _library("Xi")

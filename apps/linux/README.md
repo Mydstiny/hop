@@ -25,8 +25,9 @@ sudo apt install ./hop-input_2.0.0~rc1_amd64.deb
 - Select the host and receiver roles. Compare both full SHA-256 fingerprints
   on the devices before confirming the connection. Add further devices in the
   host workspace and use **Arrange connected devices** to set their positions.
-- Release the mouse buttons and keys and turn off Caps Lock before starting
-  remote control. Press **Ctrl+Alt+Shift+Esc** to restore local input if needed.
+- Release the mouse buttons and keys before starting remote control. Caps
+  Lock does not block crossing; each computer keeps its own Caps Lock state.
+  Press **Ctrl+Alt+Shift+Esc** to restore local input if needed.
   Edge crossing must be enabled in the host workspace. On X11 desktops with a
   compatible notification area, the Hop icon displays connection status and
   offers pause/return and resume actions. [GTK notification-area support](https://docs.gtk.org/gtk3/class.StatusIcon.html)

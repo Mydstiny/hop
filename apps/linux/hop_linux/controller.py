@@ -22,6 +22,9 @@ from .layout import Device,Screen,Layout,LayoutStore
 
 class ControllerError(RuntimeError):pass
 
+# Each user gets this long to compare fingerprints.
+_REVIEW_SECONDS=120.0
+
 class PairingController:
     network_role=1
 
@@ -178,6 +181,7 @@ class PairingController:
             clipboard=self._new_clipboard()
             session=pair_verified_socket(self._open(hint),pending=pending,library=self.library,own_certificate=self.certificate,
                 private_key=self.private_key,role='host',tcp_initiator=True,sink=_NoCapture(),trust_store=self.store,canceled=self.stopping.is_set,
+                connect_timeout=self._peer_confirm_budget(),
                 capabilities=1|8|16|(clipboard.supported_capabilities if clipboard else 0),clipboard=clipboard,clipboard_sender=clipboard.sender if clipboard else None)
             self._serve_host_session(session,candidate.name,hint)
         except BaseException as exc:
@@ -266,7 +270,7 @@ class PairingController:
             if candidate:
                 pending=self._review_candidate(candidate)
                 if pending is None:return
-                self.listener.settimeout(15);sock=self._remember_socket(self.listener.accept()[0])
+                self.listener.settimeout(self._peer_confirm_budget());sock=self._remember_socket(self.listener.accept()[0])
             self.listener.close();self.listener=None
             self._close_discovery()
             self._serve_inbound(sock,pending=pending,prefix=prefix,peer_name=candidate.name if candidate else '已配对设备')
@@ -280,7 +284,10 @@ class PairingController:
         pending=PendingPairing(self.certificate,candidate.certificate,self.library.certificate_fingerprint)
         try:
             self._event({'type':'compare','name':candidate.name,'local':pending.local_fingerprint,'peer':pending.peer_fingerprint})
-            try:approved=self.answers.get(timeout=120)
+            # The peer shows its own prompt at about the same moment and gives its
+            # user the same window. Keep waiting for that side until it closes.
+            self.peer_confirm_deadline=time.monotonic()+_REVIEW_SECONDS
+            try:approved=self.answers.get(timeout=_REVIEW_SECONDS)
             except queue.Empty:raise ControllerError('fingerprint comparison timed out')
             if approved and not self.stopping.is_set():
                 pending.confirm(pending.local_fingerprint,pending.peer_fingerprint)
@@ -446,7 +453,7 @@ class PairingController:
     def _enter_from_local_edge(self,session,event):
         from .layout_router import route_edge
         try:monitors,position=self._monitor_snapshot(require_input_clear=True,include_pointer=True)
-        except ControllerError:return # held inputs/Caps Lock: do not steal their release
+        except ControllerError:return # held inputs: do not steal their release
         if monitors!=self.local_screens:raise ControllerError('local monitor configuration changed')
         screen=next((s for s in monitors if s[0]==event['screen_id']),None)
         if not screen:return
@@ -513,7 +520,7 @@ class PairingController:
         if route and route.device_id!=session.transport.peer_fingerprint:raise ControllerError('target identity changed')
         try:monitors=self._monitor_snapshot(require_input_clear=True)
         except ControllerError:
-            # A key or button is held, or Caps Lock is on. Nothing has been sent
+            # A key or button is held. Nothing has been sent
             # or claimed yet, so report it and keep the connection.
             if route and self.host_group:self.host_group.authority.abort(self,session)
             self._event({'type':'input_busy'});return
@@ -559,6 +566,11 @@ class PairingController:
         result=subprocess.run([sys.executable,'-B','-m','hop_linux.local_pointer',str(px),str(py)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=2)
         if result.returncode:raise ControllerError('local pointer restoration failed')
         return True
+
+    def _peer_confirm_budget(self):
+        """Seconds to wait for the other user's fingerprint confirmation."""
+        remaining=getattr(self,'peer_confirm_deadline',0)-time.monotonic()
+        return min(_REVIEW_SECONDS,max(15.0,remaining))
 
     def _open(self,hint):
         if self.stopping.is_set():raise ControllerError('pairing canceled')
@@ -650,7 +662,10 @@ class ReceiverPairingController(PairingController):
             with self.socket_lock:
                 if self.stopping.is_set():return
                 self.active_socket=sock
-            sink=_NoCapture();capabilities=0;screens=()
+            # Bit 0 is mandatory in every v2 HELLO; core hosts end the session
+            # without it. A pairing-only receiver announces no screens, so no
+            # host can target it with ENTER.
+            sink=_NoCapture();capabilities=1;screens=()
             if self.enable_input:
                 from .x11 import X11Backend
                 from .x11_sink import X11Sink
@@ -662,7 +677,8 @@ class ReceiverPairingController(PairingController):
                 tcp_initiator=tcp_initiator,sink=sink,trust_store=self.store,capabilities=capabilities,
                 clipboard=clipboard,clipboard_sender=clipboard.sender if clipboard else None)
             if pending:
-                session=pair_verified_socket(sock,pending=pending,canceled=self.stopping.is_set,**options)
+                session=pair_verified_socket(sock,pending=pending,canceled=self.stopping.is_set,
+                    connect_timeout=self._peer_confirm_budget() if tcp_initiator else None,**options)
             else:
                 session=reconnect_verified_socket(sock,peer_fingerprint=fingerprint,prefix=prefix,**options)
             if screens:session.announce_screens(screens)

@@ -137,7 +137,8 @@ def read_selector(sock, *, timeout=10, prefix=b''):
 def connect_selected(sock, *, library, own_certificate, private_key, peer, timeout=10):
     """Write our public lookup hint then authenticate the exact pinned peer."""
     from .tls import SecureSocket, VerifiedPeer
-    if not isinstance(sock,socket.socket) or not isinstance(peer,VerifiedPeer) or not 0<timeout<=30:raise OfferError('verified peer and bounded timeout required')
+    # Up to 120 s: the listener may still be waiting for its user's confirmation.
+    if not isinstance(sock,socket.socket) or not isinstance(peer,VerifiedPeer) or not 0<timeout<=120:raise OfferError('verified peer and bounded timeout required')
     channel=None;deadline=time.monotonic()+timeout
     try:
         hint=encode_selector(library.certificate_fingerprint(own_certificate))
