@@ -10,21 +10,23 @@ Hop shares a keyboard and mouse between computers on the same local network. The
 
 ## Downloads and supported platforms
 
-The **v2.0.0-rc.2** preview supports the three platforms below. Use the same version on every computer you pair.
+The **v2.0.0-rc.2** preview supports the four platforms below. Use the same version on every computer you pair.
 
 | Platform | Roles in the preview | Installer and requirements |
 | --- | --- | --- |
 | macOS 14 or later | Share input, receive input | Universal DMG for Apple silicon and Intel, with a ZIP as a fallback. The preview build is ad-hoc signed; Apple notarization is pending. |
 | Windows 10 x64 (build 15063 or later), Windows 11 x64 | Share input, receive input | Per-user EXE installer. The preview build is not Authenticode signed yet. |
 | HarmonyOS PC / 2-in-1, API 20+, arm64 | Receive input | A HAP that you sign and sideload yourself. Use the input-only build with an ordinary debug profile, or the full build with a profile that carries the clipboard ACL. |
+| Ubuntu 22.04 / 24.04 amd64, X11 session | Share input, receive input | A DEB package; install it with `sudo apt install ./FILE`. Needs an unlocked keyring. Wayland sessions are not supported yet, and the package has not yet been accepted on real input devices. |
 
-The release page provides `SHA256SUMS`. After downloading, check a file with `shasum -a 256 FILE` (macOS) or `Get-FileHash -Algorithm SHA256 FILE` (PowerShell). The Linux X11 client's source is in this repository; the three-platform preview does not ship a Linux package.
+The release page provides `SHA256SUMS`. After downloading, check a file with `shasum -a 256 FILE` (macOS) or `Get-FileHash -Algorithm SHA256 FILE` (PowerShell) or `sha256sum FILE` (Linux).
 
 ## Install and permissions
 
 - **macOS.** Open the DMG and drag Hop to Applications. With the ZIP, unzip it and move `Hop.app` to Applications. Open Hop from the menu bar and grant Accessibility and Input Monitoring in System Settings → Privacy & Security, then reopen Hop when prompted. Gatekeeper may restrict a downloaded preview build. [Install and permissions](docs/INSTALL_MAC.md) · [Apple's Gatekeeper article](https://support.apple.com/en-us/102445)
 - **Windows.** Run the EXE, open Hop from the Start menu and use the Hop icon in the system tray to reach the panel. LAN pairing needs TCP connections between the computers to be allowed. An unsigned build may trigger a SmartScreen prompt or be blocked by organisation policy. [Install notes](apps/windows/installer/README.md) · [Microsoft's SmartScreen article](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation)
 - **HarmonyOS PC.** Create a debug profile for the bundle name `dev.hop.input` that includes the target device, sign the HAP and sideload it with DevEco or HDC. Open Hop from the top bar and allow input control and background running when asked. The build with text and image sync needs a profile that includes `ohos.permission.READ_PASTEBOARD`, plus the matching system permission. [Signing and sideloading](docs/INSTALL_HARMONYOS.md)
+- **Linux.** In an X11 session, run `sudo apt install ./Hop-2.0.0-rc.2-linux-amd64.deb`, then open Hop from the application menu or run `hop-input`. Device certificates are kept in the system keyring, which must be unlocked. Local discovery uses Avahi; you can also enter an address and port 24891 by hand. The emergency shortcut is **Ctrl+Alt+Shift+Esc**. Remove it with `sudo apt remove hop-input`. [Linux notes](apps/linux/README.md)
 
 ## First pairing and crossing
 
@@ -54,7 +56,7 @@ The release page provides `SHA256SUMS`. After downloading, check a file with `sh
 | macOS | Install the Xcode command line tools, CMake and Python 3. Run `bash apps/macos/scripts/package.sh` to build a universal test package. [Mac build notes](docs/INSTALL_MAC.md) |
 | Windows | Use an x64 C++17 toolchain and CMake with `HOP_WINDOWS_EXPERIMENTAL_TLS` enabled. Build the installer with NSIS. [Windows build and packaging](apps/windows/installer/README.md) |
 | HarmonyOS PC | Install DevEco Studio with the desktop extension and the HarmonyOS SDK. Run `bash apps/harmonyos/scripts/package-unsigned.sh full` for the full build, or pass `input-only` for the input-only build. [HarmonyOS build notes](docs/INSTALL_HARMONYOS.md) |
-| Linux X11 | GTK client and X11 capture backend. [Linux build notes](apps/linux/README.md) |
+| Linux X11 | Install CMake, g++ and dpkg-dev. Run `bash apps/linux/scripts/build-native.sh /abs/new-dir` to build the runtimes, then package them with `apps/linux/packaging/build_deb.py`. [Linux build notes](apps/linux/README.md) |
 
 Please report problems and feature requests in [GitHub Issues](https://github.com/Mydstiny/hop/issues). For crossing problems, include the OS versions of the host and receiver, their relative positions and the edge that fails.
 

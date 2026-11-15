@@ -10,21 +10,23 @@ Hop 在同一局域网内共享键盘和鼠标。键鼠接在主控电脑上，�
 
 ## 下载与支持范围
 
-**v2.0.0-rc.2** 预览版支持下表中的三个平台。请在所有参与配对的电脑上使用同一版本。
+**v2.0.0-rc.2** 预览版支持下表中的四个平台。请在所有参与配对的电脑上使用同一版本。
 
 | 平台 | 预览版角色 | 安装文件与条件 |
 | --- | --- | --- |
 | macOS 14 或更新版本 | 共享键鼠、接收键鼠 | 通用 DMG，包含 Apple 芯片和 Intel 架构。另有 ZIP 备用。当前预览构建使用临时签名，Apple 公证待完成。 |
 | Windows 10 x64（15063 或更新内部版本）、Windows 11 x64 | 共享键鼠、接收键鼠 | 面向当前用户的 EXE 安装程序。当前预览构建尚未做 Authenticode 签名。 |
 | HarmonyOS PC / 二合一，API 20+，arm64 | 接收键鼠 | 用户自行签名侧载的 HAP。有普通调试 Profile 时使用键鼠版，有剪贴板 ACL 的 Profile 时可使用完整版。 |
+| Ubuntu 22.04 / 24.04 amd64，X11 会话 | 共享键鼠、接收键鼠 | DEB 安装包，用 `sudo apt install ./文件名` 安装。需要已解锁的密钥环。暂不支持 Wayland 会话，尚未在真实键鼠上验收。 |
 
-版本页提供 `SHA256SUMS`。下载后可用 `shasum -a 256 文件名`（macOS）或 `Get-FileHash -Algorithm SHA256 文件名`（PowerShell）核对。Linux X11 客户端源码在仓库内，当前三端预览版未附 Linux 安装包。
+版本页提供 `SHA256SUMS`。下载后可用 `shasum -a 256 文件名`（macOS）或 `Get-FileHash -Algorithm SHA256 文件名`（PowerShell）或 `sha256sum 文件名`（Linux）核对。
 
 ## 安装和权限
 
 - **macOS。** 打开 DMG，把 Hop 拖到「应用程序」。使用 ZIP 时，解压后把 `Hop.app` 移入「应用程序」。打开菜单栏的 Hop，在系统「隐私与安全性」中授予「辅助功能」和「输入监控」。按系统提示重开 Hop。下载的预览构建可能受 Gatekeeper 限制。[安装与权限](docs/INSTALL_MAC.md) · [Apple 的 Gatekeeper 说明](https://support.apple.com/en-us/102445)
 - **Windows。** 运行 EXE 后从开始菜单打开 Hop，使用系统托盘里的 Hop 图标进入面板。局域网配对需允许电脑之间建立 TCP 连接。未签名构建可能触发 SmartScreen 提示或受到组织策略限制。[安装说明](apps/windows/installer/README.md) · [Microsoft 的 SmartScreen 说明](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation)
 - **HarmonyOS PC。** 为包名 `dev.hop.input` 配置包含目标设备的调试 Profile，签名后通过 DevEco 或 HDC 侧载。从顶栏打开 Hop，按提示允许键鼠控制和后台运行。带文本、图片同步的版本需要 Profile 包含 `ohos.permission.READ_PASTEBOARD`，并在系统中授予权限。[签名与侧载步骤](docs/INSTALL_HARMONYOS.md)
+- **Linux。** 在 X11 会话中运行 `sudo apt install ./Hop-2.0.0-rc.2-linux-amd64.deb`，从应用菜单打开 Hop 或运行 `hop-input`。设备证书保存在系统密钥环中，需先解锁。局域网发现依赖 Avahi，也可手动填写地址和端口 24891。急停快捷键为 **Ctrl+Alt+Shift+Esc**。卸载用 `sudo apt remove hop-input`。[Linux 说明](apps/linux/README.md)
 
 ## 第一次配对与跨屏
 
@@ -54,7 +56,7 @@ Hop 在同一局域网内共享键盘和鼠标。键鼠接在主控电脑上，�
 | macOS | 安装 Xcode 命令行工具、CMake 和 Python 3。运行 `bash apps/macos/scripts/package.sh` 构建通用测试包。[Mac 构建说明](docs/INSTALL_MAC.md) |
 | Windows | 使用 x64 C++17 工具链和 CMake，启用 `HOP_WINDOWS_EXPERIMENTAL_TLS` 后构建。用 NSIS 生成安装包。[Windows 构建与打包](apps/windows/installer/README.md) |
 | HarmonyOS PC | 安装带桌面扩展的 DevEco Studio 和 HarmonyOS SDK。运行 `bash apps/harmonyos/scripts/package-unsigned.sh full` 生成完整版，或使用 `input-only` 生成键鼠版。[鸿蒙构建说明](docs/INSTALL_HARMONYOS.md) |
-| Linux X11 | GTK 客户端和 X11 捕获后端。[Linux 构建说明](apps/linux/README.md) |
+| Linux X11 | 安装 CMake、g++ 和 dpkg-dev。运行 `bash apps/linux/scripts/build-native.sh /绝对路径/新目录` 构建运行库，再用 `apps/linux/packaging/build_deb.py` 打包。[Linux 构建说明](apps/linux/README.md) |
 
 问题和功能建议请提交到 [GitHub Issues](https://github.com/Mydstiny/hop/issues)。涉及跨屏时，请注明主控与接收端的系统版本、相对位置和出问题的边缘。
 
