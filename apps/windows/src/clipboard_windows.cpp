@@ -100,9 +100,9 @@ bool WindowsClipboardBackend::read(std::uint32_t expected_sequence, ClipboardPay
             // also advertises a text or image representation.
             bool file_object=IsClipboardFormatAvailable(CF_HDROP)!=FALSE;
             for(const auto format:file_formats_) {if(!format)return false;file_object=file_object || IsClipboardFormatAvailable(format)!=FALSE;}
-            const bool dibv5 = IsClipboardFormatAvailable(CF_DIBV5) != FALSE, dib = IsClipboardFormatAvailable(CF_DIB) != FALSE;
+            const bool has_dibv5 = IsClipboardFormatAvailable(CF_DIBV5) != FALSE, has_dib = IsClipboardFormatAvailable(CF_DIB) != FALSE;
             auto selected = select_clipboard_format(file_object,
-                png_format_ && IsClipboardFormatAvailable(png_format_), dibv5, dib, IsClipboardFormatAvailable(CF_UNICODETEXT) != FALSE);
+                png_format_ && IsClipboardFormatAvailable(png_format_), has_dibv5, has_dib, IsClipboardFormatAvailable(CF_UNICODETEXT) != FALSE);
             if (selected == ClipboardSelection::png) {
                 auto memory = static_cast<HGLOBAL>(GetClipboardData(png_format_));
                 if (memory && png_from_clipboard(memory, out)) return GetClipboardSequenceNumber() == expected_sequence;
@@ -110,7 +110,7 @@ bool WindowsClipboardBackend::read(std::uint32_t expected_sequence, ClipboardPay
                 // compressed-text chunks, which the validator refuses. The same
                 // owner also offers the image as a DIB; use that. Never fall
                 // back to text, which would sync something other than the image.
-                selected = select_clipboard_format(false, false, dibv5, dib, false);
+                selected = select_clipboard_format(false, false, has_dibv5, has_dib, false);
             }
             if (selected == ClipboardSelection::text) {
                 auto memory = static_cast<HGLOBAL>(GetClipboardData(CF_UNICODETEXT));
