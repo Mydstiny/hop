@@ -242,7 +242,8 @@ with private_x_server() as display_env:
     probe_child = X11Probe()
     try:
         first = probe_child.snapshot(); started = probe_child.process.pid
-        if first['screens'] != [list(m) for m in monitors]: raise AssertionError('probe saw other monitors: ' + repr(first))
+        # RandR monitor IDs can change after the GTK tests above; geometry cannot.
+        if [m[1:] for m in first['screens']] != [[0, 0, 1280, 900]]: raise AssertionError('probe saw other monitors: ' + repr(first))
         probe_child.warp(321, 234)
         if tuple(probe_child.snapshot(clear=True, pointer=True)['pointer']) != (321, 234): raise AssertionError('probe warp not applied')
         with X11Backend() as sender:

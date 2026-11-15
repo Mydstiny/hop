@@ -1,10 +1,11 @@
 # Hop for Linux
 
-The `hop-input_2.0.0~rc2_amd64.deb` candidate targets Ubuntu 22.04 amd64 in
-an X11 desktop session. Hop can host or receive keyboard and pointer input on
-an encrypted local connection, arrange multiple peers, and share UTF-8 text or
-PNG with the active device when both sides grant permission. The candidate has
-isolated Xvfb and WSL coverage. Physical-device input, real LAN discovery,
+The `hop-input_2.0.0~rc2_amd64.deb` candidate targets Ubuntu 22.04 and 24.04
+amd64 in an X11 desktop session. Hop can host or receive keyboard and pointer
+input on an encrypted local connection, arrange multiple peers, and share UTF-8
+text or PNG with the active device when both sides grant permission. Every push
+runs the unit tests and the full Xvfb suite on both releases, builds the package
+on 22.04 and installs it on both. Physical-device input, real LAN discovery,
 display scaling, Wayland and cross-platform compatibility await validation.
 
 ## Install and use
@@ -27,7 +28,8 @@ sudo apt install ./hop-input_2.0.0~rc2_amd64.deb
   host workspace and use **Arrange connected devices** to set their positions.
 - Release the mouse buttons and keys before starting remote control. Caps
   Lock does not block crossing; each computer keeps its own Caps Lock state.
-  Press **Ctrl+Alt+Shift+Esc** to restore local input if needed.
+  Press **Ctrl+Alt+Shift+Esc** to take local input back at once. The other
+  device releases every key it holds and the connection stays open.
   Edge crossing must be enabled in the host workspace. On X11 desktops with a
   compatible notification area, the Hop icon displays connection status and
   offers pause/return and resume actions. [GTK notification-area support](https://docs.gtk.org/gtk3/class.StatusIcon.html)
@@ -130,12 +132,15 @@ sudo apt install ./hop-input_2.0.0~rc2_amd64.deb
   absolute path; it starts only after pairing, screen discovery and an explicit
   click or after the user explicitly enables experimental edge observation.
   The read-only sampler detects movement from inside a monitor to its boundary;
-  it does not detect further pushes while already at the boundary. Ctrl+Alt+
-  Shift+Esc is the emergency local-input restore shortcut. The GTK workspace
-  opens one connection window per peer and shares layout and focus authority.
+  it does not detect further pushes while already at the boundary. One
+  long-lived probe process answers the monitor, held-input and pointer queries
+  for each crossing. Ctrl+Alt+Shift+Esc releases focus and keeps the
+  connection. The GTK workspace opens one connection window per peer and shares
+  layout and focus authority.
 
-  Build the bundled libraries with `native/CMakeLists.txt` and independently
-  verified mbedTLS 3.6.7 sources. Use `packaging/build_deb.py --help` to package
+  `bash scripts/build-native.sh /abs/fresh-dir` builds the three bundled
+  libraries. It downloads the Mbed TLS 3.6.7 release and checks its SHA-256, or
+  uses `HOP_MBEDTLS_SOURCE_DIR`. Use `packaging/build_deb.py --help` to package
   the three ELF libraries, their SHA-256 digests and the upstream Apache 2.0
   license. Use a fresh output directory on a Linux filesystem.
 - `multi_session.py` coordinates a single active focus over multiple previously
@@ -179,17 +184,23 @@ PYTHONPATH=apps/linux python3 -B -m unittest discover -s apps/linux/tests -v
 The socket TLS tests are skipped unless both `HOP_TEST_TLS_LIBRARY` (absolute
 path to a locally built shared library) and `HOP_TEST_TLS_FIXTURE_DIR` (a
 private directory containing disposable `a`, `b`, and `bad` test certificate
-and key PEM files) are supplied. They use loopback only; never point this test
-at production device credentials.
+and key PEM files) are supplied. `tests/make_tls_fixtures.py` writes such a
+directory from the TLS runtime. They use loopback only; never point this test
+at production device credentials. `HOP_TEST_SHORTCUT_LIBRARY` and
+`HOP_TEST_CLIPBOARD_LIBRARY` enable the shortcut and clipboard runtime tests.
 
-Unit tests use fake or isolated X11 APIs; they do not operate on the real desktop.
-On Ubuntu 22.04 WSL x86_64, tests and dynamic X11/XTest library binding passed without
-opening the desktop; a later read-only XKB-name query on WSLg Xwayland mapped
-118 key names with all eight left/right modifier positions. No input was
-captured or injected. This is not X11 or Wayland real-device acceptance. The
-userland Zig toolchain used for shared C++ core compilation was downloaded from
-its official release, matched the upstream SHA-256, and unpacked into a private
-WSL temporary directory without changing the system environment.
+Unit tests use fake or isolated X11 APIs; they do not operate on the real
+desktop. The Xvfb suite starts its own server with a fresh Xauthority cookie
+and TCP disabled, and never touches the current display:
+
+```sh
+cd apps/linux
+HOP_TEST_XVFB=/usr/bin/Xvfb HOP_TEST_PRIVATE=/abs/private-dir \
+  PYTHONPATH="$PWD:$PWD/tests" python3 -B tests/xvfb_integration.py --run-virtual-x11-test
+```
+
+It needs the four `HOP_TEST_*` library and fixture variables above, plus
+`xauth`, GTK 3 and the X11 libraries. CI runs it on Ubuntu 22.04 and 24.04.
 
 An isolated Xvfb server was additionally run inside a private Linux user,
 mount, and network namespace with a private `/tmp`, an ephemeral Xauthority

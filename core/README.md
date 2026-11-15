@@ -43,8 +43,9 @@ ctest --test-dir build/core -C Release --output-on-failure
 ```
 
 GitHub Actions runs this matrix on every push, together with the TLS suite on
-Linux and macOS, the Linux client tests on Ubuntu 22.04, the macOS Swift and
-loopback tests, and the Windows app tests (see `.github/workflows/ci.yml`).
+Linux and macOS, the Linux client unit and Xvfb tests on Ubuntu 22.04 and
+24.04 with a package install on both, the macOS Swift and loopback tests, and
+the Windows app tests (see `.github/workflows/ci.yml`).
 Existing v1 code and its production build remain independent.
 
 ## Experimental authenticated transport
