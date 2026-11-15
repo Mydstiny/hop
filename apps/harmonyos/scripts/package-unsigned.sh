@@ -53,7 +53,7 @@ try {
   process.exit(1);
 }
 JS
-(cd "$PROJECT" && bash scripts/build.sh)
+(cd "$PROJECT" && HOP_BUILD_MODE=release bash scripts/build.sh)
 HAP="$PROJECT/entry/build/default/outputs/default/entry-default-unsigned.hap"
 python3 - "$STAGE" "$HAP" "$MODE" <<'PY'
 import json
@@ -75,6 +75,8 @@ with zipfile.ZipFile(hap) as package:
     clipboard = any(p['name'] == 'ohos.permission.READ_PASTEBOARD' for p in manifest['module']['requestPermissions'])
 if clipboard != (sys.argv[3] == 'full'):
     sys.exit('The unsigned HAP declares the wrong permissions for this variant.')
+if manifest.get('app', {}).get('debug') is not False:
+    sys.exit('The unsigned HAP is not a release build.')
 PY
 PENDING="$(mktemp "$OUT/.hop-unsigned.XXXXXX")"
 trap 'rm -rf "$STAGE"; rm -f "$PENDING"' EXIT

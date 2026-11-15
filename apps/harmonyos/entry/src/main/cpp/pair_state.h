@@ -18,7 +18,13 @@ public:
         Require(!ready&&m.type()==Type::Hello&&m.bytes[2]==1&&p[1]==1,"unexpected HELLO");
         Require(ConstantEqual(p+32,nonce.data(),16),"nonce mismatch");
         auto phase=Phase(p[0]);
-        if(phase==Phase::Reject)return Action::Reject;
+        if(phase==Phase::Reject){
+            // A RESUME REJECT clears the stored binding, so it must come from the
+            // bound Mac. Any other Hop Mac at a reused or mistyped address, or
+            // anything that echoes the nonce, only ends this attempt.
+            Require(!resuming||ConstantEqual(peer.data(),p+16,16),"rejected by a different device");
+            return Action::Reject;
+        }
         if(phase==Phase::Challenge){
             Require(!resuming&&!commitReceived,"unexpected challenge");
             if(code)Require(code==U32(p+4)&&direction==p[2]&&ConstantEqual(peer.data(),p+16,16),"changed challenge");

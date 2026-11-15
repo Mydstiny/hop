@@ -10,6 +10,20 @@
       ]
     }
   },
+  "buildOptionSet": [
+    {
+      // Distributed packages: optimized native code and a non-debuggable app.
+      "name": "release",
+      "externalNativeOptions": {
+        "path": "./src/main/cpp/CMakeLists.txt",
+        "arguments": "-DCMAKE_BUILD_TYPE=Release",
+        "cppFlags": "-std=c++17",
+        "abiFilters": [
+          "arm64-v8a"
+        ]
+      }
+    }
+  ],
   "targets": [
     {
       "name": "default"

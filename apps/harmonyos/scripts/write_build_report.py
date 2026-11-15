@@ -3,6 +3,7 @@
 from datetime import datetime
 import hashlib
 import json
+import os
 from pathlib import Path
 import sys
 import time
@@ -23,7 +24,8 @@ report = {
     'exitCode': rc,
     'timestamp': datetime.now().astimezone().isoformat(),
     'durationMs': round((time.time() - float(sys.argv[2])) * 1000),
-    'command': 'node $DEVECO/tools/hvigor/bin/hvigorw.js --mode module -p product=default -p module=entry@default -p buildMode=debug assembleHap --no-daemon --no-parallel --stacktrace',
+    'command': 'node $DEVECO/tools/hvigor/bin/hvigorw.js --mode module -p product=default -p module=entry@default -p buildMode=%s assembleHap --no-daemon --no-parallel --stacktrace' % os.environ.get('HOP_BUILD_MODE', 'debug'),
+    'buildMode': os.environ.get('HOP_BUILD_MODE', 'debug'),
     'toolchain': '/Applications/DevEco-Studio.app/Contents',
     'minimumApi': None,
     'compileApi': 26,

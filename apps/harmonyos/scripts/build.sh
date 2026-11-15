@@ -31,7 +31,14 @@ if ! (cd entry && "$DEVECO/tools/ohpm/bin/ohpm" install); then
   printf 'Cannot resolve local NAPI type packages.\n' >&2
   exit 2
 fi
-"$NODE_HOME/bin/node" "$DEVECO/tools/hvigor/bin/hvigorw.js" --mode module -p product=default -p module=entry@default -p buildMode=debug assembleHap --no-daemon --no-parallel --stacktrace 2>&1 | tee tests/.build/hap-build.log
+# Development builds stay debuggable; package-unsigned.sh sets release.
+mode="${HOP_BUILD_MODE:-debug}"
+if [[ "$mode" != debug && "$mode" != release ]]; then
+  printf 'HOP_BUILD_MODE must be debug or release.\n' >&2
+  exit 2
+fi
+export HOP_BUILD_MODE="$mode"
+"$NODE_HOME/bin/node" "$DEVECO/tools/hvigor/bin/hvigorw.js" --mode module -p product=default -p module=entry@default -p buildMode="$mode" assembleHap --no-daemon --no-parallel --stacktrace 2>&1 | tee tests/.build/hap-build.log
 rc=${PIPESTATUS[0]}
 printf '\n[exit code: %s]\n' "$rc" | tee -a tests/.build/hap-build.log
 python3 scripts/write_build_report.py "$rc" "$started"

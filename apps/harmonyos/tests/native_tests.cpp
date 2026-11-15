@@ -32,7 +32,9 @@ static void PairTests(){
  auto changedDirection=challenge;changedDirection.data()[2]=0;Reject([&]{q.Receive(changedDirection);});
  auto resume=Fresh();resume.resuming=true;resume.peer.fill(0x11);resume.token.fill(0x33);Reject([&]{resume.Receive(challenge);});
  auto bad=ready;bad.data()[48]^=1;Reject([&]{resume.Receive(bad);});bad=ready;bad.data()[16]^=1;Reject([&]{resume.Receive(bad);});
- Check(resume.Receive(ready)==PairState::Action::Ready,"resume");auto rejected=Fresh();rejected.resuming=true;Check(rejected.Receive(ServerHello(Phase::Reject))==PairState::Action::Reject,"reject must not downgrade");
+ Check(resume.Receive(ready)==PairState::Action::Ready,"resume");auto rejected=Fresh();rejected.resuming=true;rejected.peer.fill(0x11);Check(rejected.Receive(ServerHello(Phase::Reject))==PairState::Action::Reject,"reject must not downgrade");
+ auto stranger=Fresh();stranger.resuming=true;stranger.peer.fill(0x44);Reject([&]{stranger.Receive(ServerHello(Phase::Reject));});
+ auto pairingReject=Fresh();Check(pairingReject.Receive(ServerHello(Phase::Reject))==PairState::Action::Reject,"a new pairing still honours REJECT");
  auto role=challenge;role.bytes[2]=0;Reject([&]{role.validate();});
  auto invalid=challenge;invalid.data()[0]=uint8_t(Phase::Pair);Put32(invalid.data()+4,0);Reject([&]{invalid.validate();});
 }

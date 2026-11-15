@@ -197,13 +197,25 @@ export class HopV2Coordinator {
     }
   }
 
-  async authorizeClipboard(context: common.UIAbilityContext): Promise<void> {
+  /// `context` must be the context of the page the user is looking at (the
+  /// status-bar extension). The hidden main ability has no window, so a
+  /// dialog requested with its context never appears.
+  async authorizeClipboard(context: common.Context): Promise<void> {
     if (!this.view.clipboardEnabled || this.clipboardPermissionPending) { return; }
     this.clipboardPermissionPending = true;
+    const manager = abilityAccessCtrl.createAtManager();
     try {
-      await abilityAccessCtrl.createAtManager().requestPermissionsFromUser(context, [this.clipboardPermission]);
-    } catch (_) {}
-    finally { this.clipboardPermissionPending = false; }
+      let granted = false;
+      try {
+        const result = await manager.requestPermissionsFromUser(context, [this.clipboardPermission]);
+        granted = result.authResults.length > 0 && result.authResults[0] === 0;
+      } catch (_) {}
+      // After an earlier refusal the system no longer shows the request
+      // dialog; the settings dialog is the remaining in-app path.
+      if (!granted) {
+        try { await manager.requestPermissionOnSetting(context, [this.clipboardPermission]); } catch (_) {}
+      }
+    } finally { this.clipboardPermissionPending = false; }
     this.refreshClipboardPermission();
     if (!this.view.clipboardEnabled) { return; }
     this.view.clipboardMessage = this.view.clipboardAuthorized ?

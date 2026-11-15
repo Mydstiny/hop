@@ -1,5 +1,4 @@
 import { ui, stateLabel, messageLabel } from '../HopI18n';
-import { common } from '@kit.AbilityKit';
 import { statusBarManager } from '@kit.DeskTopExtensionKit';
 import { HopService, HopViewState, MacPeer } from '../HopService';
 import { HopV2Coordinator, HopV2ViewState } from '../HopV2Coordinator';
@@ -239,8 +238,9 @@ struct Index {
             Button(ui('Allow pasteboard access', '授权读取剪贴板')).height(32).backgroundColor(this.tint)
               .fontColor(this.accent).fontSize(13)
               .onClick(() => {
-                const context = this.service.getContext() as common.UIAbilityContext;
-                if (context) { this.secure.authorizeClipboard(context); }
+                // This page's own context: it belongs to the visible status-bar
+                // window, unlike the hidden main ability's.
+                this.secure.authorizeClipboard(getContext(this));
               })
           }
           if (this.secureView.clipboardMessage.length > 0) {
