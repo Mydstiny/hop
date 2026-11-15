@@ -84,6 +84,18 @@ bool png_header(const std::vector<std::uint8_t>& data) {
 }
 }
 bool valid_png_bytes(const std::vector<std::uint8_t>& bytes) { return png_header(bytes); }
+std::size_t png_stream_length(const std::uint8_t* data, std::size_t size) {
+    if (!data || size < 8) return 0;
+    std::size_t offset = 8;
+    for (unsigned chunks = 0; chunks < 4096 && size - offset >= 12; ++chunks) {
+        const auto* p = data + offset;
+        const std::size_t length = (std::size_t(p[0]) << 24) | (std::size_t(p[1]) << 16) | (std::size_t(p[2]) << 8) | p[3];
+        if (length > size - offset - 12) return 0;
+        offset += length + 12;
+        if (p[4] == 'I' && p[5] == 'E' && p[6] == 'N' && p[7] == 'D') return offset;
+    }
+    return 0;
+}
 bool valid_clipboard_payload(const ClipboardPayload& payload) {
     switch (payload.format) {
     case ClipboardFormat::utf8_text: return payload.bytes.size() <= max_text_bytes && utf8(payload.bytes);

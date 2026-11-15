@@ -18,6 +18,11 @@ constexpr std::uint64_t max_png_pixels = 40000000;
 // image pixels; decoder validation/normalization remains a separate step.
 bool valid_clipboard_payload(const ClipboardPayload& payload);
 bool valid_png_bytes(const std::vector<std::uint8_t>& bytes);
+// Bytes from the PNG signature through the end of the IEND chunk, or zero if
+// no IEND chunk fits in `size`. Windows may round a clipboard allocation up,
+// so GlobalSize can be larger than the image it holds. Structure only; the
+// result still needs valid_png_bytes.
+std::size_t png_stream_length(const std::uint8_t* data, std::size_t size);
 enum class ClipboardSelection { none, text, png, dibv5, dib };
 ClipboardSelection select_clipboard_format(bool file_list, bool png, bool dibv5, bool dib, bool text);
 

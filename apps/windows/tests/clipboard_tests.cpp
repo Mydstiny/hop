@@ -28,6 +28,17 @@ ClipboardPayload image() {
 }
 int main() {
     CHECK(select_clipboard_format(true,true,true,true,true)==ClipboardSelection::none);
+    {
+        auto padded=image().bytes; const auto exact=padded.size(); padded.resize(exact+29,0);
+        CHECK(png_stream_length(padded.data(),padded.size())==exact);
+        CHECK(png_stream_length(padded.data(),exact)==exact);
+        CHECK(png_stream_length(padded.data(),exact-1)==0);
+        padded.assign(padded.begin(),padded.begin()+exact);
+        CHECK(valid_png_bytes(std::vector<std::uint8_t>(padded.begin(),padded.begin()+png_stream_length(padded.data(),padded.size()))));
+        auto huge=image().bytes; huge[8]=0xff; // a chunk length past the buffer
+        CHECK(png_stream_length(huge.data(),huge.size())==0);
+        CHECK(png_stream_length(nullptr,64)==0);
+    }
     CHECK(select_clipboard_format(false,true,true,true,true)==ClipboardSelection::png);
     CHECK(select_clipboard_format(false,false,true,true,true)==ClipboardSelection::dibv5);
     CHECK(select_clipboard_format(false,false,false,true,true)==ClipboardSelection::dib);

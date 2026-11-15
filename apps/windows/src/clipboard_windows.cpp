@@ -38,10 +38,13 @@ bool text_from_clipboard(HGLOBAL memory, ClipboardPayload& out) {
     out = std::move(candidate); return true;
 }
 bool png_from_clipboard(HGLOBAL memory, ClipboardPayload& out) {
-    const auto size = GlobalSize(memory);
-    if (size < 33 || size > max_png_bytes) return false;
+    const auto allocated = GlobalSize(memory);
+    // Allow a little allocation rounding past the largest accepted image.
+    if (allocated < 33 || allocated > max_png_bytes + 4096) return false;
     Locked locked(memory); if (!locked.p) return false;
     const auto* p = static_cast<const std::uint8_t*>(locked.p);
+    const auto size = png_stream_length(p, allocated);
+    if (size < 33 || size > max_png_bytes) return false;
     ClipboardPayload candidate{ClipboardFormat::png, std::vector<std::uint8_t>(p, p + size)};
     if (!valid_clipboard_payload(candidate)) return false;
     out = std::move(candidate); return true;
@@ -97,12 +100,17 @@ bool WindowsClipboardBackend::read(std::uint32_t expected_sequence, ClipboardPay
             // also advertises a text or image representation.
             bool file_object=IsClipboardFormatAvailable(CF_HDROP)!=FALSE;
             for(const auto format:file_formats_) {if(!format)return false;file_object=file_object || IsClipboardFormatAvailable(format)!=FALSE;}
-            const auto selected = select_clipboard_format(file_object,
-                png_format_ && IsClipboardFormatAvailable(png_format_), IsClipboardFormatAvailable(CF_DIBV5) != FALSE,
-                IsClipboardFormatAvailable(CF_DIB) != FALSE, IsClipboardFormatAvailable(CF_UNICODETEXT) != FALSE);
+            const bool dibv5 = IsClipboardFormatAvailable(CF_DIBV5) != FALSE, dib = IsClipboardFormatAvailable(CF_DIB) != FALSE;
+            auto selected = select_clipboard_format(file_object,
+                png_format_ && IsClipboardFormatAvailable(png_format_), dibv5, dib, IsClipboardFormatAvailable(CF_UNICODETEXT) != FALSE);
             if (selected == ClipboardSelection::png) {
                 auto memory = static_cast<HGLOBAL>(GetClipboardData(png_format_));
-                return memory && png_from_clipboard(memory, out) && GetClipboardSequenceNumber() == expected_sequence;
+                if (memory && png_from_clipboard(memory, out)) return GetClipboardSequenceNumber() == expected_sequence;
+                // Browsers and screenshot tools often write PNGs with ICC or
+                // compressed-text chunks, which the validator refuses. The same
+                // owner also offers the image as a DIB; use that. Never fall
+                // back to text, which would sync something other than the image.
+                selected = select_clipboard_format(false, false, dibv5, dib, false);
             }
             if (selected == ClipboardSelection::text) {
                 auto memory = static_cast<HGLOBAL>(GetClipboardData(CF_UNICODETEXT));

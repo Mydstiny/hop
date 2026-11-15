@@ -1,10 +1,23 @@
 #include "hop_windows/pairing_runtime.h"
 #include <windows.h>
+#include <mmsystem.h>
 #include <chrono>
 #include <algorithm>
 #include <cstring>
 namespace hop::windows {
 namespace {
+// Condition-variable waits wake on the system timer, 15.6 ms by default, so a
+// 10 ms wait added up to 16 ms per side and capped pointer updates near 64 Hz.
+// Ask for 1 ms only while input is forwarded or injected; idle stays default.
+struct TimerResolution {
+    bool held=false;
+    void hold(bool want) {
+        if(want==held)return;
+        if(want)held=timeBeginPeriod(1)==TIMERR_NOERROR;
+        else {timeEndPeriod(1);held=false;}
+    }
+    ~TimerResolution(){hold(false);}
+};
 struct ClipboardSend {
     ClipboardPayload payload;std::uint64_t epoch=0,id=0;std::size_t offset=0;bool started=false;
     ~ClipboardSend(){volatile std::uint8_t* p=payload.bytes.data();for(std::size_t i=0;i<payload.bytes.size();++i)p[i]=0;}
@@ -150,6 +163,7 @@ void PairingRuntime::run(PairingRuntimeConfig config) {
         if(!pending){state_.store(PairingState::failed);notify(PairingRuntimeEvent::failed);return;}
         PairingState prior=PairingState::idle;
         bool announced=false,awaiting_focus=false,sharing=false,passive=false;
+        TimerResolution timer;
         RemoteScreen selected{};std::vector<RemoteScreen> last_displays;
         EdgeDetector detector;LiveLayout return_layout;bool edge_enter=false,auto_edge_enabled=false;std::optional<EdgeRequest> edge_config;
         std::optional<PeerDestination> handoff;
@@ -227,8 +241,13 @@ void PairingRuntime::run(PairingRuntimeConfig config) {
                 !awaiting_focus && !sharing && !passive && !auto_edge_enabled && !clip_epoch && !clip_revoke;
         };
         const auto wait_for_work=[&] {
+            const auto* active=selected_peer ? selected_peer->worker->session() : nullptr;
+            const bool interactive=bool(capture) || passive || (active && active->phase()==SessionPhase::active);
+            timer.hold(interactive);
+            // Captured input does not signal this condition variable; poll
+            // fast enough for the 240 Hz default motion rate while it flows.
             std::unique_lock<std::mutex> lock(mutex_);
-            wake_.wait_for(lock,std::chrono::milliseconds(10),[&]{
+            wake_.wait_for(lock,std::chrono::milliseconds(interactive ? 2 : 10),[&]{
                 return stop_.load() || confirmation_.load()!=0 || control_command_!=0 ||
                     pending_pointer_ || pending_add_peer_ || pending_select_peer_;
             });
