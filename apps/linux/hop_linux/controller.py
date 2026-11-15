@@ -127,6 +127,8 @@ class PairingController:
 
     def start_control(self):
         if self.state!='connected' or not self.screens or not self.shortcut_library or self.profile_pending:raise ControllerError('connected screen and saved profile required')
+        # This click supersedes a pause the tray sent while this device was local.
+        self.return_requested.clear()
         try:self.commands.put_nowait('start_control')
         except queue.Full:raise ControllerError('control request already pending')
         self.state='entering'
@@ -372,6 +374,12 @@ class PairingController:
         if profile_error:self._event({'type':'profile_error'})
         last_screens=None
         while not self.stopping.is_set() and not session.closed:
+            # Before commands: a return requested while this device was local
+            # (the tray pauses every window) must not cancel a later entry.
+            if self.return_requested.is_set():
+                self.return_requested.clear()
+                if session.phase=='remote':
+                    session.release();self.active_capture=None;self.returning_local=True
             try:command=self.commands.get_nowait()
             except queue.Empty:command=None
             if command=='start_control':self._start_control(session)
@@ -380,10 +388,6 @@ class PairingController:
                 elif self.host_group:self.host_group.authority.abort(self,command[1])
             if command=='enable_edge':self.edge_enabled=True;self._event({'type':'edge_enabled'})
             if command=='disable_edge':self.edge_enabled=False;self._close_edge_observer();self._event({'type':'edge_disabled'})
-            if self.return_requested.is_set():
-                self.return_requested.clear()
-                if session.phase=='remote':
-                    session.release();self.active_capture=None;self.returning_local=True
             may_watch=not self.host_group or self.host_group.authority.idle()
             if (not self.edge_enabled or not may_watch) and self.edge_observer:self._close_edge_observer()
             if self.edge_enabled and may_watch and session.phase=='local' and self.layout and self.local_screens and self.screens:

@@ -307,7 +307,7 @@ def run(private_x_server):
                 if check():
                     return
                 time.sleep(.01)
-            status = {k: (h.state, h.clipboard_state, h.last_error, h.trace) for k, h in hosts.items()}
+            status = {k: (h.state, h.clipboard_state, h.last_error, tuple(h.trace)) for k, h in hosts.items()}
             raise AssertionError((description, status, {k:p.call('state') for k,p in peers.items()}))
 
         def move(letter, direction):

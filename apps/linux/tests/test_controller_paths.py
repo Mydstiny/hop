@@ -182,5 +182,17 @@ class LimitTests(unittest.TestCase):
             Device(PEER, 'n' * 129, 'windows', 0, 0, screens[:1])
 
 
+class StaleReturnTests(unittest.TestCase):
+    def test_pause_sent_while_local_does_not_cancel_a_later_entry(self):
+        host = object.__new__(controller_module.PairingController)
+        host.state = 'connected'; host.screens = ((1, 0, 0, 10, 10),); host.shortcut_library = '/lib'
+        host.profile_pending = False; host.commands = queue.Queue(maxsize=1)
+        host.return_requested = threading.Event()
+        host.request_local_focus()          # the tray pauses every window
+        host.start_control()
+        self.assertFalse(host.return_requested.is_set())
+        self.assertEqual(host.commands.get_nowait(), 'start_control')
+
+
 if __name__ == '__main__':
     unittest.main()
