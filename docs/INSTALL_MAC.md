@@ -4,7 +4,7 @@
 
 ## Hop 2.0 候选包
 
-打开预览版 DMG，将 Hop 拖到「应用程序」。也可以下载 ZIP，解压后将 `Hop.app` 移入「应用程序」。两种包均包含 Apple Silicon 和 Intel 的可执行代码。[下载预览版](https://github.com/Mydstiny/hop/releases/tag/v2.0.0-rc.1)
+打开预览版 DMG，将 Hop 拖到「应用程序」。也可以下载 ZIP，解压后将 `Hop.app` 移入「应用程序」。两种包均包含 Apple Silicon 和 Intel 的可执行代码。[下载预览版](https://github.com/Mydstiny/hop/releases/tag/v2.0.0-rc.2)
 
 预览版使用 ad-hoc 签名，尚未公证。正式的站外分发使用 Developer ID Application 签名和 Apple 公证。[Apple 公证说明](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)
 

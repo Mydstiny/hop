@@ -1,6 +1,6 @@
 # Hop for Linux
 
-The `hop-input_2.0.0~rc1_amd64.deb` candidate targets Ubuntu 22.04 amd64 in
+The `hop-input_2.0.0~rc2_amd64.deb` candidate targets Ubuntu 22.04 amd64 in
 an X11 desktop session. Hop can host or receive keyboard and pointer input on
 an encrypted local connection, arrange multiple peers, and share UTF-8 text or
 PNG with the active device when both sides grant permission. The candidate has
@@ -13,7 +13,7 @@ On a compatible Linux desktop, install the local package and launch **Hop**
 from the application menu or run `hop-input`:
 
 ```sh
-sudo apt install ./hop-input_2.0.0~rc1_amd64.deb
+sudo apt install ./hop-input_2.0.0~rc2_amd64.deb
 ```
 
 - Use an X11 login session and an unlocked Secret Service collection for device

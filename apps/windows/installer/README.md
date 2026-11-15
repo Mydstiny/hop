@@ -1,6 +1,6 @@
 # Hop Windows x64 release candidate installer
 
-The NSIS recipe installs Hop 2.0.0-rc.1 for the current user on x64 Windows 10
+The NSIS recipe installs Hop 2.0.0-rc.2 for the current user on x64 Windows 10
 (build 15063 or later) and Windows 11. It places the tray and uninstaller in
 `%LOCALAPPDATA%\Programs\Hop`, creates a Start menu shortcut and registers
 the application for uninstall. Upgrades and uninstall ask the user to exit
@@ -17,9 +17,17 @@ makensis /WX `
   /DHOP_LICENSE=C:\absolute\path\mouse_transfer\LICENSE `
   /DHOP_TLS_LICENSE=C:\absolute\path\mouse_transfer\third_party\mbedtls-3.6.7-LICENSE.txt `
   /DHOP_NOTICES=C:\absolute\path\mouse_transfer\THIRD_PARTY_NOTICES.md `
-  /DHOP_INSTALLER=C:\absolute\path\Hop-Setup-2.0.0-rc.1-windows-x64.exe `
+  /DHOP_INSTALLER=C:\absolute\path\Hop-Setup-2.0.0-rc.2-windows-x64.exe `
   apps\windows\installer\Hop.nsi
 ```
+
+From 2.0.0-rc.2 on, the published installer comes from the manually run
+`Windows installer` GitHub Actions workflow
+([`.github/workflows/windows-installer.yml`](../../../.github/workflows/windows-installer.yml)).
+On a clean `windows-latest` runner it builds the TLS-enabled Release tray with
+MinGW, runs CTest, checks that the tray needs no MinGW runtime DLL, compiles
+the installer with `makensis /WX`, then installs, upgrades and uninstalls it
+silently. The installer and its SHA-256 are attached to the run.
 
 The 2026-11-10 candidate was compiled with NSIS 3.13 with warnings treated as
 errors. A separate fixture build used the same installer script and final x64

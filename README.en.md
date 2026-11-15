@@ -4,13 +4,13 @@
 
 Hop shares a keyboard and mouse between computers on the same local network. The keyboard and mouse stay plugged into the host computer; push the pointer across a screen edge to control the computer next to it. Devices connect to each other directly. There is no Hop account and no cloud service.
 
-[Download the v2.0.0-rc.1 preview](https://github.com/Mydstiny/hop/releases/tag/v2.0.0-rc.1)
+[Download the v2.0.0-rc.2 preview](https://github.com/Mydstiny/hop/releases/tag/v2.0.0-rc.2)
 
 ![Hop's spatial layout view. A HarmonyOS PC sits below the Mac's main display; green edge segments mark where the pointer can cross in both directions.](docs/media/screen-layout.png)
 
 ## Downloads and supported platforms
 
-The **v2.0.0-rc.1** preview supports the three platforms below. Use the same version on every computer you pair.
+The **v2.0.0-rc.2** preview supports the three platforms below. Use the same version on every computer you pair.
 
 | Platform | Roles in the preview | Installer and requirements |
 | --- | --- | --- |

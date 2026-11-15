@@ -1,0 +1,99 @@
+name: Windows installer
+
+# Builds the release tray and its NSIS installer on a clean runner, then
+# installs and uninstalls it silently. Run it by hand for a release; the
+# installer is attached to the run as an artifact.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Display version, for example 2.0.0-rc.2
+        required: true
+      file_version:
+        description: Four-part file version, for example 2.0.0.2
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  installer:
+    name: Build and check the installer
+    runs-on: windows-latest
+    env:
+      HOP_VERSION: ${{ inputs.version }}
+      HOP_FILE_VERSION: ${{ inputs.file_version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the version inputs
+        shell: pwsh
+        run: |
+          if ($env:HOP_VERSION -notmatch '^\d+\.\d+\.\d+(-rc\.\d+)?$') { throw "Unexpected version: $env:HOP_VERSION" }
+          if ($env:HOP_FILE_VERSION -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw "Unexpected file version: $env:HOP_FILE_VERSION" }
+      - name: Configure
+        run: cmake -S apps/windows -B build/windows -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DBUILD_TESTING=ON -DHOP_WINDOWS_EXPERIMENTAL_TLS=ON
+      - name: Build
+        run: cmake --build build/windows --parallel 4
+      - name: Test
+        run: ctest --test-dir build/windows --output-on-failure --timeout 120
+      - name: Check the tray needs no MinGW runtime
+        shell: bash
+        run: |
+          objdump -p build/windows/hop_windows_tray.exe | grep "DLL Name" | tee dlls.txt
+          if grep -qiE 'libstdc|libgcc|libwinpthread' dlls.txt; then echo "The tray links a MinGW runtime DLL"; exit 1; fi
+      - name: Install NSIS
+        shell: pwsh
+        run: |
+          if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) { choco install nsis -y --no-progress }
+          Add-Content -Path $env:GITHUB_PATH -Value 'C:\Program Files (x86)\NSIS'
+      - name: Build the installer
+        shell: pwsh
+        run: |
+          $root = (Get-Location).Path
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $setup = Join-Path $root "dist\Hop-Setup-$env:HOP_VERSION-windows-x64.exe"
+          makensis /WX `
+            "/DHOP_EXECUTABLE=$root\build\windows\hop_windows_tray.exe" `
+            "/DHOP_LICENSE=$root\LICENSE" `
+            "/DHOP_TLS_LICENSE=$root\third_party\mbedtls-3.6.7-LICENSE.txt" `
+            "/DHOP_NOTICES=$root\THIRD_PARTY_NOTICES.md" `
+            "/DHOP_DISPLAY_VERSION=$env:HOP_VERSION" `
+            "/DHOP_FILE_VERSION=$env:HOP_FILE_VERSION" `
+            "/DHOP_INSTALLER=$setup" `
+            apps\windows\installer\Hop.nsi
+          if ($LASTEXITCODE) { throw "makensis failed" }
+      - name: Install and uninstall silently
+        shell: pwsh
+        run: |
+          $setup = Resolve-Path "dist\Hop-Setup-$env:HOP_VERSION-windows-x64.exe"
+          $dir = Join-Path $env:LOCALAPPDATA 'Programs\Hop'
+          $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Hop'
+          $p = Start-Process $setup -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode) { throw "Setup exited with $($p.ExitCode)" }
+          foreach ($f in 'Hop.exe','Uninstall.exe','licenses\Hop.txt','licenses\mbedTLS.txt','licenses\THIRD_PARTY_NOTICES.md') {
+            if (-not (Test-Path (Join-Path $dir $f))) { throw "Missing $f" }
+          }
+          $built = (Get-FileHash build\windows\hop_windows_tray.exe).Hash
+          if ((Get-FileHash (Join-Path $dir 'Hop.exe')).Hash -ne $built) { throw 'Installed Hop.exe differs from the built tray' }
+          if ((Get-ItemProperty $key).DisplayVersion -ne $env:HOP_VERSION) { throw 'Wrong registered version' }
+          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Programs')) 'Hop\Hop.lnk'))) { throw 'Missing Start menu shortcut' }
+          # A second run upgrades in place.
+          $p = Start-Process $setup -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode) { throw "Upgrade exited with $($p.ExitCode)" }
+          # The NSIS uninstaller relaunches itself from a temporary copy.
+          Start-Process (Join-Path $dir 'Uninstall.exe') -ArgumentList '/S' -Wait
+          for ($i = 0; $i -lt 60 -and (Test-Path (Join-Path $dir 'Hop.exe')); $i++) { Start-Sleep -Milliseconds 500 }
+          if (Test-Path (Join-Path $dir 'Hop.exe')) { throw 'Uninstall left Hop.exe' }
+          if (Test-Path $key) { throw 'Uninstall left the registry entry' }
+      - name: Record the checksum
+        shell: pwsh
+        run: |
+          $setup = "dist\Hop-Setup-$env:HOP_VERSION-windows-x64.exe"
+          $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLower()
+          "$hash  $(Split-Path $setup -Leaf)" | Out-File -Encoding ascii dist\SHA256SUMS-windows
+          Get-Content dist\SHA256SUMS-windows
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hop-windows-installer-${{ inputs.version }}
+          path: dist/
+          if-no-files-found: error

@@ -1,6 +1,6 @@
 # Hop v2 会话协议
 
-本文是各平台实现共同遵守的字节约定，v2.0.0-rc.1 预览版的 macOS、Windows、Linux 与 HarmonyOS 端均按此实现。协议与实现尚未经过独立安全评审，各平台的实机验收范围见[发布候选清单](plans/2026-11-10-release-candidate.md)。v1 仍是独立的明文协议，不与此协议自动降级或复用 token。
+本文是各平台实现共同遵守的字节约定，v2.0.0-rc.2 预览版的 macOS、Windows、Linux 与 HarmonyOS 端均按此实现。协议与实现尚未经过独立安全评审，各平台的实机验收范围见[发布候选清单](plans/2026-11-10-release-candidate.md)。v1 仍是独立的明文协议，不与此协议自动降级或复用 token。
 
 ## 身份与连接
 

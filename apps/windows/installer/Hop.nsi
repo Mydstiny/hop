@@ -23,10 +23,10 @@ CRCCheck force
   !error "Set HOP_NOTICES to the repository THIRD_PARTY_NOTICES.md"
 !endif
 !ifndef HOP_DISPLAY_VERSION
-  !define HOP_DISPLAY_VERSION "2.0.0-rc.1"
+  !define HOP_DISPLAY_VERSION "2.0.0-rc.2"
 !endif
 !ifndef HOP_FILE_VERSION
-  !define HOP_FILE_VERSION "2.0.0.1"
+  !define HOP_FILE_VERSION "2.0.0.2"
 !endif
 
 !define HOP_INSTALL_PATH "$LOCALAPPDATA\Programs\Hop"

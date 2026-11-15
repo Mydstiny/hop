@@ -12,7 +12,7 @@ import tempfile
 from build_preview_deb import library
 
 PACKAGE = 'hop-input'
-VERSION = '2.0.0~rc1'
+VERSION = '2.0.0~rc2'
 ARCHITECTURE = 'amd64'
 RUNTIMES = ('tls', 'shortcut', 'clipboard')
 
